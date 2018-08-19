@@ -35,3 +35,4 @@ SimpleDB
 CMakeFiles/*
 build/*
 CMakeCache.txt
+Makefile

@@ -7,15 +7,6 @@
 #include <boost/log/utility/setup/formatter_parser.hpp>
 #include <boost/log/utility/setup/from_stream.hpp>
 
-#include <fstream>
-
-#include <boost/filesystem.hpp>
-#include <boost/log/trivial.hpp>
-#include <boost/log/utility/setup/common_attributes.hpp>
-#include <boost/log/utility/setup/filter_parser.hpp>
-#include <boost/log/utility/setup/formatter_parser.hpp>
-#include <boost/log/utility/setup/from_stream.hpp>
-
 bool init_log_environment(std::string _cfg) {
   namespace logging = boost::log;
   using namespace logging::trivial;
@@ -44,7 +35,10 @@ int main(int argc, char* argv[]) {
   namespace src = boost::log::sources;
   namespace logging = boost::log;
   using namespace logging::trivial;
-  src::severity_channel_logger<severity_level, std::string> scl;
+  src::severity_channel_logger<severity_level, std::string> scl(
+      boost::log::keywords::channel = "config");
   BOOST_LOG_SEV(scl, debug) << __FILE__ << "::" << __LINE__ << " success";
+  BOOST_LOG_SEV(scl, debug) << __FILE__ << "::" << __LINE__ << " success";
+  BOOST_LOG_SEV(scl, error) << __FILE__ << "::" << __LINE__ << " success";
   return 0;
 }
