@@ -98,12 +98,14 @@ void FileHandleOp::setFileHandleOp(handleType filehandle) {
   file_handle_ = filehandle;
 }
 
+// 设置偏移量
 void FileHandleOp::seekToOffset(offsetType offset) {
   if ((offsetType)-1 != offset) {
     lseek(file_handle_, offset, SEEK_SET);
   }
 }
 
+// 获取文件大小
 offsetType FileHandleOp::getSize(void) {
   struct stat fd_info;
   if (COMMON_ERROR == fstat(file_handle_, &fd_info)) {

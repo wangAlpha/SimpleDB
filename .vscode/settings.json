@@ -25,7 +25,16 @@
         "__locale": "cpp",
         "__string": "cpp",
         "__config": "cpp",
-        "__nullptr": "cpp"
+        "__nullptr": "cpp",
+        "exception": "cpp",
+        "new": "cpp",
+        "stdexcept": "cpp",
+        "typeinfo": "cpp",
+        "algorithm": "cpp",
+        "cfenv": "cpp",
+        "type_traits": "cpp",
+        "variant": "cpp",
+        "complex": "cpp"
     },
     "C_Cpp.configurationWarnings": "Disabled"
 }
