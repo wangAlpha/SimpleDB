@@ -2,6 +2,7 @@
 #include "ThreadPool.h"
 #include "core.h"
 #include "logging.h"
+#include "message.h"
 
 using boost::asio::ip::tcp;
 bool Quit = false;
@@ -10,10 +11,10 @@ std::string Extract_Buffer(char *argc, size_t length) {
   *std::remove(argc, argc + length, '\n') = '\0';
   return std::string(argc);
 }
-std::string Command_Handle(std::string &&command) {
-  std::string result("");
+std::string Command_Handle(std::string &command) {
+  // std::vector<std::string>> result;
 
-  return result;
+  return "";
 }
 
 int main(int argc, char *argv[]) {
@@ -26,6 +27,7 @@ int main(int argc, char *argv[]) {
     boost::asio::io_service io_service;
     tcp::acceptor acceptor(io_service,
                            tcp::endpoint(tcp::v4(), std::atoi(argv[1])));
+    // Create a thread pool
     ThreadPool pool(128);
     while (!Quit) {
       auto socket = std::make_shared<tcp::socket>(io_service);
@@ -45,7 +47,7 @@ int main(int argc, char *argv[]) {
                     << '\n';
           auto command = Extract_Buffer(buf.data(), len);
           if (command.size() > 0) {
-            auto result = Command_Handle(std::move(command));
+            auto result = Command_Handle(command);
             std::cout << "Extract result: " << command;
             boost::asio::write(*sock, boost::asio::buffer(message),
                                boost::asio::transfer_all(), ignored_error);
