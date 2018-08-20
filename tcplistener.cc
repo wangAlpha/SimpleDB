@@ -7,16 +7,6 @@
 using boost::asio::ip::tcp;
 bool Quit = false;
 
-std::string Extract_Buffer(char *argc, size_t length) {
-  *std::remove(argc, argc + length, '\n') = '\0';
-  return std::string(argc);
-}
-std::string Command_Handle(std::string &command) {
-  // std::vector<std::string>> result;
-
-  return "";
-}
-
 int main(int argc, char *argv[]) {
   if (argc < 2) {
     std::cerr << "Usage SimpleDB <port>" << std::endl;
@@ -45,6 +35,7 @@ int main(int argc, char *argv[]) {
 
           std::cout << "recv a message len:" << len << "data: " << buf.data()
                     << '\n';
+
           auto command = Extract_Buffer(buf.data(), len);
           if (command.size() > 0) {
             auto result = Command_Handle(command);

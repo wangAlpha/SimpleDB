@@ -37,7 +37,7 @@ FileHandleOp::~FileHandleOp() {
   close(file_handle_);
   file_handle_ = INVALID_FD_HANDLE;
 }
-
+// open file
 int FileHandleOp::Open(const char *path) {
   do {
     // 读写模式

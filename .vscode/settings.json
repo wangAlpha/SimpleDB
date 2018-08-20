@@ -34,7 +34,17 @@
         "cfenv": "cpp",
         "type_traits": "cpp",
         "variant": "cpp",
-        "complex": "cpp"
+        "complex": "cpp",
+        "iostream": "cpp",
+        "typeindex": "cpp",
+        "__functional_base": "cpp",
+        "__functional_base_03": "cpp",
+        "__tuple": "cpp",
+        "chrono": "cpp",
+        "functional": "cpp",
+        "limits": "cpp",
+        "ratio": "cpp",
+        "tuple": "cpp"
     },
     "C_Cpp.configurationWarnings": "Disabled"
 }
