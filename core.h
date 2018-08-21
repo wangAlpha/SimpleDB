@@ -22,6 +22,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <nlohmann/json.hpp>
 #include <queue>
 #include <stdexcept>
 #include <string>
@@ -29,6 +30,9 @@
 #include <unordered_map>
 #include <vector>
 
-const int OK = 0;
-const int COMMON_OK = 0;
-const int COMMON_ERROR = -1;
+constexpr int OK = 0;
+constexpr int COMMON_OK = 0;
+constexpr int COMMON_ERROR = -1;
+constexpr int ErrConnected = -2;
+constexpr int ErrCommand = -3;
+constexpr int ErrSubCommand = -4;

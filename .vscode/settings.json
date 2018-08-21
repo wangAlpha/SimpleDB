@@ -44,7 +44,12 @@
         "functional": "cpp",
         "limits": "cpp",
         "ratio": "cpp",
-        "tuple": "cpp"
+        "tuple": "cpp",
+        "future": "cpp",
+        "system_error": "cpp",
+        "stack": "cpp",
+        "valarray": "cpp"
     },
-    "C_Cpp.configurationWarnings": "Disabled"
+    "C_Cpp.configurationWarnings": "Disabled",
+    "C_Cpp.intelliSenseEngineFallback": "Enabled"
 }

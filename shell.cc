@@ -12,6 +12,8 @@ void Shell::prompt() {
   boost::split(text, buffer, [](char ch) { return ch == ' '; });
   Command cmd;
   auto result = cmd.CommandProcesser(text);
+  std::for_each(text.begin(), text.end(),
+                [](auto const &t) { std::cout << t << std::endl; });
   if (result != nullptr) {
     result->execute(client, text);
   } else {
