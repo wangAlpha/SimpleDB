@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core.h"
+
 #define CODE_REPLY 1
 #define CODE_QUERY 2
 #define CODE_INSERT 3
@@ -8,6 +9,7 @@
 #define CODE_SNAPSHOT 5
 #define CODE_SHUTDOWN 6
 #define CODE_RETURN 0
+// for convenience
 
 struct Header {
   uint32_t len;
@@ -58,12 +60,17 @@ std::string Extract_Buffer(char *argc, size_t length) {
   return buffer;
 }
 
-using json = nlohmann::json;
 int BuildReply(char **buffer, int *buffer_size, int returnCode,
-               json *objReturn) {
+               nlohmann::json *objReturn) {
   MessageReply *reply = nullptr;
   auto size = sizeof(MessageReply);
   if (objReturn != nullptr) {
+    // serialize to MessagePack
+    std::vector<std::uint8_t> message_pack =
+        nlohmann::json::to_msgpack(*objReturn);
+    size += message_pack.size();
+    // 0x82, 0xA7, 0x63, 0x6F, 0x6D, 0x70, 0x61, 0x63, 0x74, 0xC3, 0xA6, 0x73,
+    // 0x63, 0x68, 0x65, 0x6D, 0x61, 0x00
     // size += objReturn.
   }
   reply = (MessageReply *)(*buffer);
@@ -103,7 +110,7 @@ int ExtractReply(char *buffer, int &returnCode, int &numReturn,
   return OK;
 }
 
-int BuildInsert(char **buffer, int *buffer_size, json &obj) {
+int BuildInsert(char **buffer, int *buffer_size, nlohmann::json &obj) {
   // TODO
   auto size = sizeof(MessageInsert) + obj.size();
   // buffere is allocated
@@ -117,7 +124,8 @@ int BuildInsert(char **buffer, int *buffer_size, json &obj) {
   return OK;
 }
 
-int BuildInsert(char **buffer, int *buffer_size, std::vector<json *> &objs) {
+int BuildInsertMsg(char **buffer, int *buffer_size,
+                   std::vector<nlohmann::json *> &objs) {
   size_t size = 0;
   for (auto &it : objs) {
     // size += it->size();
@@ -148,7 +156,7 @@ int ExtractInsert(char *buffer, int &num_insert, const char **objs) {
   return OK;
 }
 
-int BuildDelete(char **buffer, int *buffer_size, json &key) {
+int BuildDelete(char **buffer, int *buffer_size, nlohmann::json &key) {
   auto size = sizeof(MessageDelete) + key.size();
   // check buffer
   //
@@ -160,6 +168,7 @@ int BuildDelete(char **buffer, int *buffer_size, json &key) {
   del_message->header.typeCode = CODE_DELETE;
   // bson object
   // memcpy(&)
+  return OK;
 }
 
 std::string Command_Handle(std::string &command) {

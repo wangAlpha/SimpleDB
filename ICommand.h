@@ -1,4 +1,10 @@
 #pragma once
+
+#include "core.h"
+#include "logging.h"
+#include "message.h"
+#include "shell.h"
+
 #define COMMAND_QUIT "quit"
 #define COMMAND_INSERT "insert"
 #define COMMAND_QUERY "query"
@@ -8,37 +14,35 @@
 #define COMMAND_TEST "test"
 #define COMMAND_SNAPSHOT "snapshot"
 
-#include "core.h"
-#include "message.h"
-#include "shell.h"
-
 class ICommand {
  public:
   int sendOrder(Client &client, int code) {
     Header header;
     header.len = sizeof(header);
     header.typeCode = code;
-    // send
+
+    client.send((void *)&header, sizeof(header));
   }
-  int sendOrder(Client &client, std::string &message) {}
+  template <class Fn>
+  int sendOrder(Client &client, Fn &fun, std::string &message) {}
   int getError(int err) { return OK; }
   int handleReply();
   virtual int execute(Client &client, std::vector<std::string> &text) = 0;
 };
 
 class ConnectCommand : public ICommand {
-  std::string address;
-  std::string port;
+  std::string address_;
+  std::string port_;
 
  public:
   int execute(Client &client, std::vector<std::string> &text) {
     if (client.isConnected()) {
       client.dissconect();
     }
-    address = text[1];
-    port = text[2];
-    client.buildConnect(address.c_str(), port.c_str());
-    return 0;
+    address_ = text[1];
+    port_ = text[2];
+    client.buildConnect(address_.c_str(), port_.c_str());
+    return OK;
   }
 };
 
@@ -52,17 +56,25 @@ class QuitCommand : public ICommand {
   }
 };
 
-using json = nlohmann::json;
 class InsertCommand : public ICommand {
  public:
+  int recvReply(Client &clien) { return 0; }
   int execute(Client &client, std::vector<std::string> &text) {
+    int rc = OK;
     if (!client.isConnected()) {
       return getError(ErrConnected);
     }
     if (text.size() != 2) {
       return getError(ErrSubCommand);
     }
-    // auto result = sendOrder(client, BuildInsertMsg, text[2]);
+    void *buffer = nullptr;
+    size_t size = 0;
+    // BuildInsert(buffer, &size, );
+    rc = sendOrder(client, BuildInsert, text[2]);
+
+    rc = recvReply(client);
+
+    rc = handleReply();
     return OK;
   }
 };

@@ -1,6 +1,7 @@
 
 #pragma once
 #include "core.h"
+#include "logging.h"
 
 using boost::asio::ip::tcp;
 class Client {
@@ -40,6 +41,16 @@ class Client {
   int send(std::string &message) {
     boost::asio::write(*socket_, boost::asio::buffer(message), error_);
     return 0;
+  }
+  int send(void *buffer, size_t size) {
+    int rc = OK;
+    try {
+      boost::asio::write(*socket_, boost::asio::buffer(buffer, size), error_);
+    } catch (std::exception const &e) {
+      DB_LOG_TRIVAIL(error, e.what());
+      rc = ErrSend;
+    }
+    return rc;
   }
   bool check_connected() {
     if (connected_) {

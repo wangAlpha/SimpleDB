@@ -36,3 +36,4 @@ constexpr int COMMON_ERROR = -1;
 constexpr int ErrConnected = -2;
 constexpr int ErrCommand = -3;
 constexpr int ErrSubCommand = -4;
+constexpr int ErrSend = -5;

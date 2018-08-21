@@ -12,7 +12,7 @@ int main(int argc, char *argv[]) {
     std::cerr << "Usage SimpleDB <port>" << std::endl;
     exit(EXIT_FAILURE);
   }
-  init_log_environment();
+  // init_log_environment(DEFAULT_LOG_CONFIG);
   try {
     boost::asio::io_service io_service;
     tcp::acceptor acceptor(io_service,
