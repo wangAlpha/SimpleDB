@@ -66,7 +66,7 @@ std::string Extract_Buffer(char *argc, size_t length) {
   printf("len: %d type:Code: %d \n", header->len, header->typeCode);
   try {
     auto insert_value = (MessageInsert *)buf.data();
-    auto j = nlohmann::json::from_msgpack((char *)&insert_value->data[0]);
+    auto j = nlohmann::json::from_msgpack(insert_value->data);
     std::cout << j.dump() << j.size() << std::endl;
   } catch (nlohmann::json::exception const &e) {
     DB_LOG(error, e.what()) << std::endl;
@@ -82,7 +82,7 @@ int BuildReply(char *buffer, int *buffer_size, int return_code,
     // serialize to MessagePack
     size += pack.size();
   }
-  reply = (MessageReply *)(*buffer);
+  reply = (MessageReply *)buffer;
   // build header
   reply->header.len = size;
   reply->header.typeCode = CODE_REPLY;
@@ -92,7 +92,7 @@ int BuildReply(char *buffer, int *buffer_size, int return_code,
 
   // json object
   if (pack.size()) {
-    memcpy((void *)&reply->data[0], pack.data(), pack.size());
+    memcpy((void *)reply->data, pack.data(), pack.size());
   }
   return OK;
 }
@@ -113,7 +113,7 @@ int ExtractReply(char *buffer, int &return_code, int &numReturn,
   }
   return_code = reply->returnCode;
   numReturn = reply->numReturn;
-  *obj = (0 == numReturn) ? nullptr : (char *)(&reply->data[0]);
+  *obj = (0 == numReturn) ? nullptr : reply->data;
 
 error:
   return rc;
@@ -132,7 +132,8 @@ int BuildInsert(char *buffer, size_t *buffer_size, std::vector<uint8_t> &pack) {
   // build object
   insert_value->length = 1;
   *buffer_size = size;
-  memcpy(&insert_value->data[0], pack.data(), pack.size() * sizeof(pack[0]));
+  memcpy((void *)insert_value->data, pack.data(),
+         pack.size() * sizeof(pack[0]));
   printf("len : %lu, CODE: %d\n", size, CODE_INSERT);
   return OK;
 }
@@ -160,15 +161,15 @@ error:
 
 // 删除消息包构建
 int BuildDelete(char *buffer, size_t *buffer_size, std::vector<uint8_t> &pack) {
-  int rc = rc;
+  int rc = OK;
   auto size = sizeof(MessageDelete) + pack.size();
   // buffer is deallocated
   auto del_pack = (MessageDelete *)(buffer);
   // build header
   del_pack->header.typeCode = CODE_DELETE;
   del_pack->header.len = size;
-  // build del key
-  memcpy((void *)&del_pack->key[0], pack.data(), pack.size());
+  // build del key message
+  memcpy((void *)del_pack->key, pack.data(), pack.size());
   printf("len: %ld, CODE: %d\n", size, del_pack->header.typeCode);
   return rc;
 }
@@ -188,7 +189,7 @@ int ExtractDelete(char *buffer, nlohmann::json &key) {
     goto error;
   }
   try {
-    key = nlohmann::json::from_msgpack((char *)&message->key[0]);
+    key = nlohmann::json::from_msgpack(message->key);
   } catch (nlohmann::json::exception const &e) {
     DB_LOG(error, "json parse from mesg pack fail!");
     rc = ErrPackParse;
@@ -208,7 +209,7 @@ int BuildQuery(char *buffer, size_t *buffer_size, std::vector<uint8_t> &key) {
   pack->header.len = size;
   pack->header.typeCode = CODE_QUERY;
   // json oject
-  memcpy((void *)&pack->key[0], key.data(), key.size());
+  memcpy((void *)pack->key, key.data(), key.size());
   return rc;
 }
 
@@ -226,7 +227,7 @@ int ExtractQuery(char *buffer, nlohmann::json &key) {
     goto done;
   }
   try {
-    key = nlohmann::json::from_msgpack((char *)&message->key[0]);
+    key = nlohmann::json::from_msgpack(message->key);
   } catch (nlohmann::json::exception const &e) {
     DB_LOG(error, "json parse from mesg pack fail!");
     rc = ErrPackParse;

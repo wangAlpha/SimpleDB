@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ICommand.h"
 #include "core.h"
+#include "icommand.h"
 
 class Command {
   std::unordered_map<std::string, ICommand *> _cmdMap;
