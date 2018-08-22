@@ -2,7 +2,7 @@
 #include "command.h"
 #include "core.h"
 
-bool Quit = false;
+bool gQuit = false;
 void Shell::prompt() {
   std::cout << "Shell > ";
   std::string buffer;
@@ -23,7 +23,7 @@ void Shell::start() {
   std::cout << "Welcome to SimpleDB Shell!" << std::endl;
   std::cout << "Simple help for help, Ctrl+c or quit to exit\n" << std::endl;
 
-  while (Quit == false) {
+  while (gQuit == false) {
     prompt();
   }
 }

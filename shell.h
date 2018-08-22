@@ -18,7 +18,7 @@ class Client {
 
  public:
   Client() : connected_(false) {}
-  ~Client() {}
+  ~Client() { dissconect(); }
 
   bool isConnected() const { return connected_; }
   void buildConnect(char const *address, char const *port) {
@@ -56,7 +56,7 @@ class Client {
     try {
       boost::asio::write(*socket_, boost::asio::buffer(buffer, size), error_);
     } catch (std::exception const &e) {
-      DB_LOG_TRIVAIL(error, e.what());
+      DB_LOG(error, e.what());
       rc = ErrSend;
     }
     return rc;

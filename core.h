@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <algorithm>
+#include <atomic>
 #include <boost/algorithm/string.hpp>
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
@@ -40,3 +41,6 @@ constexpr int ErrSend = -5;
 constexpr int Err_Recv_Length = -6;
 constexpr int ErrInvaildArg = -7;
 constexpr int ErrPackParse = -8;
+constexpr int ErrSockNotConnect = -9;
+constexpr int  ErrRecvCode = -10;
+constexpr int ErrRecvLen = -11;

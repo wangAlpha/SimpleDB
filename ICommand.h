@@ -14,6 +14,13 @@
 #define COMMAND_TEST "test"
 #define COMMAND_SNAPSHOT "snapshot"
 
+#define INSERT_TIME "insert_time"
+#define DEL_TIME "del_time"
+#define QUERY_TIME "query_time"
+#define RUN_TIME "run_time"
+
+extern bool gQuit;
+
 class ICommand {
  public:
   int sendOrder(Client &client, int code) {
@@ -23,15 +30,17 @@ class ICommand {
 
     client.send((void *)&header, sizeof(header));
   }
+
   template <class Fn>
   int sendOrder(Client &client, Fn &fun, std::string &message) {
     int ret = OK;
-    std::vector<uint8_t> message_pack;
+    std::vector<uint8_t> pack;
     try {
-      message_pack = nlohmann::json::to_msgpack(message);
-      // std::cout <<
-      std::for_each(message_pack.begin(), message_pack.end(),
-                    [](auto &e) { printf(" %x ", e); });
+      pack = nlohmann::json::to_msgpack(message);
+      printf("[");
+      std::for_each(pack.begin(), pack.end(),
+                    [](auto &e) { printf("%x ", e); });
+      printf("]\n");
     } catch (nlohmann::json::exception const &e) {
       std::cerr << e.what() << std::endl;
       return getError(ErrCommand);
@@ -39,7 +48,7 @@ class ICommand {
     memset(Send_Buffer, 0, SEND_BUFFER_SIZE);
     auto size = SEND_BUFFER_SIZE;
     char *send_buffer = Send_Buffer;
-    fun(Send_Buffer, &size, message_pack);
+    fun(Send_Buffer, &size, pack);
     std::cout << "send size " << size << std::endl;
     ret = client.send((void *)Send_Buffer, size);
     if (ret) {
@@ -47,7 +56,14 @@ class ICommand {
     }
     return ret;
   }
-  int getError(int err) { return OK; }
+
+  int getError(int code) {
+    if (code != OK) {
+      std::cerr << "Occur error" << std::endl;
+    }
+    return code;
+  }
+
   int recvReply(Client &client) {
     auto len = RECV_BUFFER_SIZE;
     client.recv(recv_buffer_, len);
@@ -80,10 +96,20 @@ class ConnectCommand : public ICommand {
 
 class QuitCommand : public ICommand {
  public:
+  int handleReply() {
+    std::cerr << "Bye!" << std::endl;
+    gQuit = true;
+    return OK;
+  }
+
   int execute(Client &client, std::vector<std::string> &text) {
-    std::cout << "Bye!" << std::endl;
-    // TODO
-    exit(EXIT_SUCCESS);
+    auto ret = OK;
+    if (!client.isConnected()) {
+      return getError(ErrSockNotConnect);
+    }
+    ret = sendOrder(client, CODE_DISCONNECT);
+    client.dissconect();
+    ret = handleReply();
     return 0;
   }
 };
@@ -91,9 +117,8 @@ class QuitCommand : public ICommand {
 class InsertCommand : public ICommand {
  public:
   int handleReply() {
-    // TODO
-    MessageReply *msg = new MessageReply();
-    auto returnCode = msg->returnCode;
+    auto message = (MessageReply *)recv_buffer_;
+    auto returnCode = message->returnCode;
     return getError(returnCode);
   }
 
@@ -105,7 +130,7 @@ class InsertCommand : public ICommand {
     if (text.size() != 2) {
       return getError(ErrSubCommand);
     }
-    rc = sendOrder(client, BuildInsert, text[2]);
+    rc = sendOrder(client, BuildInsert, text[1]);
     rc = recvReply(client);
     rc = handleReply();
     return OK;
@@ -114,22 +139,104 @@ class InsertCommand : public ICommand {
 
 class QueryCommand : public ICommand {
  public:
-  int execute(Client &client, std::vector<std::string> &text) { return 0; }
+  int handleReply() {
+    auto message = (MessageReply *)recv_buffer_;
+    auto return_code = message->returnCode;
+    auto ret = getError(return_code);
+    if (ret) {
+      return ret;
+    }
+    if (message->numReturn) {
+      auto data = nlohmann::json::from_msgpack((char *)&message->data[0]);
+      std::cout << data.dump() << std::endl;
+    }
+    return ret;
+  }
+  int execute(Client &client, std::vector<std::string> &text) {
+    auto rc = OK;
+    if (text.size() < 2) {
+      return getError(ErrInvaildArg);
+    }
+    rc = sendOrder(client, BuildQuery, text[1]);
+    DB_CHECK(rc, error, "Failed to send order to query");
+    rc = recvReply(client);
+    DB_CHECK(rc, error, "Failed to receive a reply for server");
+    rc = handleReply();
+    DB_CHECK(rc, error, "Failed to handle reply");
+    return rc;
+  }
 };
 
 class DeleteCommand : public ICommand {
  public:
-  int execute(Client &client, std::vector<std::string> &text) { return 0; }
+  int handleReply() {
+    auto message = (MessageReply *)recv_buffer_;
+    auto return_code = message->returnCode;
+    auto ret = getError(return_code);
+    return ret;
+  }
+
+  int execute(Client &client, std::vector<std::string> &text) {
+    auto rc = OK;
+    if (text.size() < 2) {
+      return getError(ErrInvaildArg);
+    }
+    rc = sendOrder(client, BuildDelete, text[1]);
+    DB_CHECK(rc, error, "Failed to send delete order to server");
+    rc = recvReply(client);
+    DB_CHECK(rc, error, "Failed to receive reply message for server");
+    rc = handleReply();
+    DB_CHECK(rc, error, "Failed to handle relpy message");
+    return 0;
+  }
 };
 
 class SnapCommand : public ICommand {
  public:
-  int execute(Client &client, std::vector<std::string> &text) { return 0; }
+  int handleReply() {
+    auto ret = OK;
+    auto message = (MessageReply *)recv_buffer_;
+    auto return_code = message->returnCode;
+    if (ret) {
+      return getError(return_code);
+    }
+    auto json_obj = nlohmann::json();
+    try {
+      json_obj = nlohmann::json::from_msgpack((char *)&message->data[0]);
+      std::cerr << json_obj.dump() << std::endl;
+    } catch (nlohmann::json::exception const &e) {
+      std::cerr << e.what() << std::endl;
+      return getError(ErrPackParse);
+    }
+
+    printf("insert time is %u\n", json_obj[INSERT_TIME].get<uint32_t>());
+    printf("del time is %u\n", json_obj[DEL_TIME].get<uint32_t>());
+    printf("query time is %u\n", json_obj[QUERY_TIME].get<uint32_t>());
+    printf("server run time id %um\n", json_obj[RUN_TIME].get<uint32_t>());
+    return ret;
+  }
+
+  int execute(Client &client, std::vector<std::string> &text) {
+    auto rc = OK;
+    if (!client.isConnected()) {
+      return getError(ErrSockNotConnect);
+    }
+    rc = sendOrder(client, CODE_SNAPSHOT);
+    // check rc
+    rc = recvReply(client);
+    // check rc
+    rc = handleReply();
+    // check rc
+    return 0;
+  }
 };
 
 class TestCommand : public ICommand {
  public:
-  int execute(Client &client, std::vector<std::string> &text) { return 0; }
+  int execute(Client &client, std::vector<std::string> &text) {
+    // 需要编写测试用例
+    return 0;
+  }
 };
 
 class HelpCommand : public ICommand {
@@ -149,6 +256,6 @@ class HelpCommand : public ICommand {
            COMMAND_SNAPSHOT);
     printf("%s -- quitting command\n\n", COMMAND_QUIT);
     printf("Type \"help\" command for help \n");
-    return 0;
+    return OK;
   }
 };

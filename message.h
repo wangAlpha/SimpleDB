@@ -9,9 +9,15 @@
 #define CODE_DELETE 4
 #define CODE_SNAPSHOT 5
 #define CODE_SHUTDOWN 6
-#define CODE_RETURN 0
-// for convenience
+#define CODE_CONNECT 7
+#define CODE_DISCONNECT 8
 
+#define CODE_RETURN 0
+
+constexpr char kTab_Char = '\t';
+constexpr char kEnter_Char = '\n';
+
+// [0]为变长数组，用于取出数据地址,不占用空间
 struct Header {
   uint32_t len;
   uint32_t typeCode;
@@ -20,38 +26,36 @@ struct Header {
 struct MessageInsert {
   Header header;
   uint32_t length;
-  uint32_t data[0];
+  char data[0];
 };
 
 struct MessageDelete {
   Header header;
-  uint32_t key[0];
+  char key[0];
 };
 
 struct MessageQuery {
   Header header;
-  uint32_t key[0];
+  char key[0];
 };
 
 struct MessageSnapshot {
   Header header;
-  uint32_t data[0];
+  char data[0];
 };
 
 struct MessageShutdown {
   Header header;
-  uint32_t data[0];
+  char data[0];
 };
 
 struct MessageReply {
   Header header;
   uint32_t returnCode;
   uint32_t numReturn;
-  uint32_t data[0];
+  char data[0];
 };
 
-constexpr char kTab_Char = '\t';
-constexpr char kEnter_Char = '\n';
 // remove Tab and Enter character
 std::string Extract_Buffer(char *argc, size_t length) {
   std::string buffer(argc, argc + length);
@@ -65,12 +69,12 @@ std::string Extract_Buffer(char *argc, size_t length) {
     auto j = nlohmann::json::from_msgpack((char *)&insert_value->data[0]);
     std::cout << j.dump() << j.size() << std::endl;
   } catch (nlohmann::json::exception const &e) {
-    DB_LOG_TRIVAIL(error, e.what()) << std::endl;
+    DB_LOG(error, e.what()) << std::endl;
   }
   return buffer;
 }
 
-int BuildReply(char *buffer, int *buffer_size, int returnCode,
+int BuildReply(char *buffer, int *buffer_size, int return_code,
                std::vector<uint8_t> &pack) {
   MessageReply *reply = nullptr;
   auto size = sizeof(MessageReply);
@@ -83,7 +87,7 @@ int BuildReply(char *buffer, int *buffer_size, int returnCode,
   reply->header.len = size;
   reply->header.typeCode = CODE_REPLY;
   // build body
-  reply->returnCode = returnCode;
+  reply->returnCode = return_code;
   reply->numReturn = (pack.size() == 0);
 
   // json object
@@ -93,27 +97,28 @@ int BuildReply(char *buffer, int *buffer_size, int returnCode,
   return OK;
 }
 
-int ExtractReply(char *buffer, int &returnCode, int &numReturn,
+int ExtractReply(char *buffer, int &return_code, int &numReturn,
                  const char **obj) {
+  auto rc = OK;
   auto reply = (MessageReply *)buffer;
   if (reply->header.len < sizeof(MessageReply)) {
-    // Error
-    return -1;
+    DB_LOG(error, "rely message length is error");
+    rc = ErrRecvCode;
+    goto error;
   }
   if (reply->header.typeCode != CODE_REPLY) {
-    // Error
-    return -1;
+    DB_LOG(error, "rely message type code is error");
+    rc = ErrRecvCode;
+    goto error;
   }
-  returnCode = reply->returnCode;
+  return_code = reply->returnCode;
   numReturn = reply->numReturn;
+  *obj = (0 == numReturn) ? nullptr : (char *)(&reply->data[0]);
 
-  if (0 == numReturn) {
-    *obj = nullptr;
-  } else {
-    *obj = (char *)(&reply->data[0]);
-  }
-  return OK;
+error:
+  return rc;
 }
+
 // TODO ---------未加入缓冲区检测
 // 构建插入消息包
 int BuildInsert(char *buffer, size_t *buffer_size, std::vector<uint8_t> &pack) {
@@ -128,7 +133,7 @@ int BuildInsert(char *buffer, size_t *buffer_size, std::vector<uint8_t> &pack) {
   insert_value->length = 1;
   *buffer_size = size;
   memcpy(&insert_value->data[0], pack.data(), pack.size() * sizeof(pack[0]));
-  printf("len : %d, CODE: %d\n", size, CODE_INSERT);
+  printf("len : %lu, CODE: %d\n", size, CODE_INSERT);
   return OK;
 }
 
@@ -137,25 +142,25 @@ int ExtractInsert(char *buffer, int &insert_num, const char **objs) {
   auto rc = OK;
   auto message = (MessageInsert *)buffer;
   if (message->header.len < sizeof(MessageInsert)) {
-    DB_LOG_TRIVAIL(error, "Invaild length of insert message");
+    DB_LOG(error, "Invaild length of insert message");
     rc = ErrInvaildArg;
-    goto done;
+    goto error;
   }
 
   if (message->header.typeCode != CODE_INSERT) {
-    DB_LOG_TRIVAIL(error, "Invaild code of insert message");
+    DB_LOG(error, "Invaild code of insert message");
     rc = ErrInvaildArg;
-    goto done;
+    goto error;
   }
   insert_num = message->length;
   *objs = (0 == insert_num) ? nullptr : (char *)&message->data[0];
-done:
+error:
   return rc;
 }
 
 // 删除消息包构建
 int BuildDelete(char *buffer, size_t *buffer_size, std::vector<uint8_t> &pack) {
-  int rc = OK;
+  int rc = rc;
   auto size = sizeof(MessageDelete) + pack.size();
   // buffer is deallocated
   auto del_pack = (MessageDelete *)(buffer);
@@ -165,7 +170,7 @@ int BuildDelete(char *buffer, size_t *buffer_size, std::vector<uint8_t> &pack) {
   // build del key
   memcpy((void *)&del_pack->key[0], pack.data(), pack.size());
   printf("len: %ld, CODE: %d\n", size, del_pack->header.typeCode);
-  return OK;
+  return rc;
 }
 
 // 删除消息包解析
@@ -173,30 +178,31 @@ int ExtractDelete(char *buffer, nlohmann::json &key) {
   int rc = OK;
   auto message = (MessageDelete *)buffer;
   if (message->header.len < sizeof(Header)) {
-    DB_LOG_TRIVAIL(error, "Invaild length of delete message");
+    DB_LOG(error, "Invaild length of delete message");
     rc = ErrInvaildArg;
+    goto error;
   }
   if (message->header.typeCode != CODE_DELETE) {
-    DB_LOG_TRIVAIL(error, "Invaild code of delete message");
+    DB_LOG(error, "Invaild code of delete message");
     rc = ErrInvaildArg;
-    goto done;
+    goto error;
   }
   try {
     key = nlohmann::json::from_msgpack((char *)&message->key[0]);
   } catch (nlohmann::json::exception const &e) {
-    DB_LOG_TRIVAIL(error, "json parse from mesg pack fail!");
+    DB_LOG(error, "json parse from mesg pack fail!");
     rc = ErrPackParse;
-    goto done;
+    goto error;
   }
-done:
+
+error:
   return rc;
 }
 
 int BuildQuery(char *buffer, size_t *buffer_size, std::vector<uint8_t> &key) {
   auto rc = OK;
   auto size = sizeof(MessageQuery) + key.size();
-  // check buffer size
-  // TODO
+  // TODO check buffer size
   auto pack = (MessageQuery *)buffer;
   // build header
   pack->header.len = size;
@@ -210,21 +216,23 @@ int ExtractQuery(char *buffer, nlohmann::json &key) {
   int rc = OK;
   auto message = (MessageQuery *)buffer;
   if (message->header.len < sizeof(Header)) {
-    DB_LOG_TRIVAIL(error, "Invaild length of query message");
+    DB_LOG(error, "Invaild length of query message");
     rc = ErrInvaildArg;
+    goto done;
   }
   if (message->header.typeCode != CODE_QUERY) {
-    DB_LOG_TRIVAIL(error, "Invaild code of query message");
+    DB_LOG(error, "Invaild code of query message");
     rc = ErrInvaildArg;
     goto done;
   }
   try {
     key = nlohmann::json::from_msgpack((char *)&message->key[0]);
   } catch (nlohmann::json::exception const &e) {
-    DB_LOG_TRIVAIL(error, "json parse from mesg pack fail!");
+    DB_LOG(error, "json parse from mesg pack fail!");
     rc = ErrPackParse;
     goto done;
   }
+
 done:
   return rc;
 }

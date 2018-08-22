@@ -7,8 +7,6 @@
 using boost::asio::ip::tcp;
 bool Quit = false;
 
-void TCPListener(std::shared_ptr<tcp::socket> &sock) {}
-
 int main(int argc, char *argv[]) {
   if (argc < 2) {
     std::cerr << "Usage SimpleDB <port>" << std::endl;
@@ -41,14 +39,14 @@ int main(int argc, char *argv[]) {
                                boost::asio::transfer_all(), ignored_error);
           }
           if (err) {
-            DB_LOG_TRIVAIL(error, err.message());
+            DB_LOG(error, err.message());
             return;
           }
         }
       });
     }
   } catch (std::exception const &e) {
-    DB_LOG_TRIVAIL(error, e.what());
+    DB_LOG(error, e.what());
   }
 
   return 0;

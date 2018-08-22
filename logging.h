@@ -1,16 +1,5 @@
 #pragma once
-#include "core.h"
 
-#define DEFAULT_LOG_CONFIG "log.cfg"
-#define DB_LOG_SEV(scl, level, message)                               \
-  BOOST_LOG_SEV((scl), (level)) << __FILE__ << ":" << __LINE__ << " " \
-                                << __FUNCTION__ << "() " << (message)
-
-#define DB_LOG_TRIVAIL(level, message)                           \
-  BOOST_LOG_TRIVIAL(level) << __FILE__ << ":" << __LINE__ << " " \
-                           << __FUNCTION__ << "() " << (message)
-
-// bool init_log_environment(std::string cfg = DEFAULT_LOG_CONFIG);
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/log/attributes.hpp>
@@ -33,12 +22,25 @@
 #include <boost/log/utility/setup/formatter_parser.hpp>
 #include <boost/log/utility/setup/from_stream.hpp>
 #include <fstream>
-#include <iostream>
 #include "core.h"
-#include "logging.h"
 
 namespace logging = boost::log;
 using namespace logging::trivial;
+#define DEFAULT_LOG_CONFIG "log.cfg"
+#define DB_LOG_SEV(scl, level, message)                               \
+  BOOST_LOG_SEV((scl), (level)) << __FILE__ << ":" << __LINE__ << " " \
+                                << __FUNCTION__ << "() " << (message)
+
+#define DB_LOG(level, message)                                   \
+  BOOST_LOG_TRIVIAL(level) << __FILE__ << ":" << __LINE__ << " " \
+                           << __FUNCTION__ << "() " << (message)
+
+#define DB_CHECK(cond, level, message) \
+  do {                                 \
+    if (!cond) {                       \
+      DB_LOG(level, message);          \
+    }                                  \
+  } while (0)
 
 bool init_log_environment(std::string cfg = DEFAULT_LOG_CONFIG) {
   if (!boost::filesystem::exists("./log/")) {
@@ -53,7 +55,7 @@ bool init_log_environment(std::string cfg = DEFAULT_LOG_CONFIG) {
   try {
     logging::init_from_stream(file);
   } catch (const std::exception& e) {
-    std::cout << "init_logger is fail, read log config file fail. curse: "
+    std::cerr << "init_logger is fail, read log config file fail. curse: "
               << e.what() << std::endl;
     exit(-2);
   }
