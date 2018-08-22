@@ -3,10 +3,12 @@
 #include "core.h"
 #include "logging.h"
 
+constexpr size_t SEND_BUFFER_SIZE = 4096;
+char Send_Buffer[SEND_BUFFER_SIZE];
 using boost::asio::ip::tcp;
 class Client {
  private:
-  static const size_t BUFFER_SIZE = 1024;
+  static constexpr size_t BUFFER_SIZE = 4096;
   bool connected_;
   boost::asio::io_service io_service_;
   std::shared_ptr<tcp::socket> socket_;

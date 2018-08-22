@@ -24,7 +24,29 @@ class ICommand {
     client.send((void *)&header, sizeof(header));
   }
   template <class Fn>
-  int sendOrder(Client &client, Fn &fun, std::string &message) {}
+  int sendOrder(Client &client, Fn &fun, std::string &message) {
+    int ret = OK;
+    std::vector<uint8_t> message_pack;
+    try {
+      message_pack = nlohmann::json::to_msgpack(message);
+      // std::cout <<
+      std::for_each(message_pack.begin(), message_pack.end(),
+                    [](auto &e) { printf(" %x ", e); });
+    } catch (nlohmann::json::exception const &e) {
+      std::cerr << e.what() << std::endl;
+      return getError(ErrCommand);
+    }
+    memset(Send_Buffer, 0, SEND_BUFFER_SIZE);
+    auto size = SEND_BUFFER_SIZE;
+    char *send_buffer = Send_Buffer;
+    fun(Send_Buffer, &size, message_pack);
+    std::cout << "send size " << size << std::endl;
+    ret = client.send((void *)Send_Buffer, size);
+    if (ret) {
+      return getError(ret);
+    }
+    return ret;
+  }
   int getError(int err) { return OK; }
   int handleReply();
   virtual int execute(Client &client, std::vector<std::string> &text) = 0;
@@ -58,6 +80,12 @@ class QuitCommand : public ICommand {
 
 class InsertCommand : public ICommand {
  public:
+  int handleReply() {
+    // TODO
+    MessageReply *msg = new MessageReply();
+    auto returnCode = msg->returnCode;
+    return getError(returnCode);
+  }
   int recvReply(Client &clien) { return 0; }
   int execute(Client &client, std::vector<std::string> &text) {
     int rc = OK;
@@ -67,9 +95,7 @@ class InsertCommand : public ICommand {
     if (text.size() != 2) {
       return getError(ErrSubCommand);
     }
-    void *buffer = nullptr;
-    size_t size = 0;
-    // BuildInsert(buffer, &size, );
+
     rc = sendOrder(client, BuildInsert, text[2]);
 
     rc = recvReply(client);

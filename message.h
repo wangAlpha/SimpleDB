@@ -57,6 +57,16 @@ std::string Extract_Buffer(char *argc, size_t length) {
   std::string buffer(argc, argc + length);
   buffer.erase(std::remove(buffer.begin(), buffer.end(), kTab_Char));
   buffer.erase(std::remove(buffer.begin(), buffer.end(), kEnter_Char));
+  // buffer.erase(std::remove(buffer.begin(), buffer.end(), '\0'));
+  std::vector<uint8_t> buf(buffer.begin(), buffer.end());
+  std::for_each(buffer.begin(), buffer.end(),
+                [](auto &e) { printf(" %x ", e); });
+  try {
+    // auto j = nlohmann::json::from_msgpack(buf);
+    // std::cout << j << std::endl;
+  } catch (nlohmann::json::exception const &e) {
+    DB_LOG_TRIVAIL(warning, e.what()) << std::endl;
+  }
   return buffer;
 }
 
@@ -66,11 +76,8 @@ int BuildReply(char **buffer, int *buffer_size, int returnCode,
   auto size = sizeof(MessageReply);
   if (objReturn != nullptr) {
     // serialize to MessagePack
-    std::vector<std::uint8_t> message_pack =
-        nlohmann::json::to_msgpack(*objReturn);
+    auto message_pack = nlohmann::json::to_msgpack(*objReturn);
     size += message_pack.size();
-    // 0x82, 0xA7, 0x63, 0x6F, 0x6D, 0x70, 0x61, 0x63, 0x74, 0xC3, 0xA6, 0x73,
-    // 0x63, 0x68, 0x65, 0x6D, 0x61, 0x00
     // size += objReturn.
   }
   reply = (MessageReply *)(*buffer);
@@ -110,17 +117,18 @@ int ExtractReply(char *buffer, int &returnCode, int &numReturn,
   return OK;
 }
 
-int BuildInsert(char **buffer, int *buffer_size, nlohmann::json &obj) {
+int BuildInsert(char *buffer, size_t *buffer_size, std::vector<uint8_t> &pack) {
   // TODO
-  auto size = sizeof(MessageInsert) + obj.size();
+  auto size = sizeof(MessageInsert) + pack.size();
   // buffere is allocated
-  auto insert_value = (MessageInsert *)(*buffer);
+  auto insert_value = (MessageInsert *)(buffer);
   // build header
   insert_value->header.len = size;
   insert_value->header.typeCode = CODE_INSERT;
   // build object
   insert_value->length = 1;
-  // memcpy(&insert_value->data[0], )
+  *buffer_size = size;
+  memcpy(&insert_value->data[0], pack.data(), pack.size() * sizeof(pack[0]));
   return OK;
 }
 
