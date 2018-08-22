@@ -48,7 +48,10 @@
         "future": "cpp",
         "system_error": "cpp",
         "stack": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "thread": "cpp",
+        "__bit_reference": "cpp",
+        "forward_list": "cpp"
     },
     "C_Cpp.configurationWarnings": "Disabled",
     "C_Cpp.intelliSenseEngineFallback": "Enabled"

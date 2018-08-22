@@ -40,6 +40,13 @@ class Client {
     auto len = socket_->read_some(boost::asio::buffer(buf_), error_);
     return buf_.data();
   }
+  int recv(char *buf, size_t &size) {
+    if (!check_connected()) {
+      throw std::runtime_error("Socket is dissconection!");
+    }
+    size = socket_->read_some(boost::asio::buffer(buf_, size), error_);
+    return OK;
+  }
   int send(std::string &message) {
     boost::asio::write(*socket_, boost::asio::buffer(message), error_);
     return 0;

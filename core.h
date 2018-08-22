@@ -37,3 +37,6 @@ constexpr int ErrConnected = -2;
 constexpr int ErrCommand = -3;
 constexpr int ErrSubCommand = -4;
 constexpr int ErrSend = -5;
+constexpr int Err_Recv_Length = -6;
+constexpr int ErrInvaildArg = -7;
+constexpr int ErrPackParse = -8;

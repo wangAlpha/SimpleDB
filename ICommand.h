@@ -48,8 +48,18 @@ class ICommand {
     return ret;
   }
   int getError(int err) { return OK; }
+  int recvReply(Client &client) {
+    auto len = RECV_BUFFER_SIZE;
+    client.recv(recv_buffer_, len);
+    if (len >= RECV_BUFFER_SIZE) {
+      return getError(Err_Recv_Length);
+    }
+    return OK;
+  }
   int handleReply();
   virtual int execute(Client &client, std::vector<std::string> &text) = 0;
+  static constexpr size_t RECV_BUFFER_SIZE = 4096;
+  char recv_buffer_[RECV_BUFFER_SIZE];
 };
 
 class ConnectCommand : public ICommand {
@@ -86,7 +96,7 @@ class InsertCommand : public ICommand {
     auto returnCode = msg->returnCode;
     return getError(returnCode);
   }
-  int recvReply(Client &clien) { return 0; }
+
   int execute(Client &client, std::vector<std::string> &text) {
     int rc = OK;
     if (!client.isConnected()) {
@@ -95,11 +105,8 @@ class InsertCommand : public ICommand {
     if (text.size() != 2) {
       return getError(ErrSubCommand);
     }
-
     rc = sendOrder(client, BuildInsert, text[2]);
-
     rc = recvReply(client);
-
     rc = handleReply();
     return OK;
   }
