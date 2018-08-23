@@ -56,24 +56,6 @@ struct MessageReply {
   char data[0];
 };
 
-// remove Tab and Enter character
-std::string Extract_Buffer(char *argc, size_t length) {
-  std::string buffer(argc, argc + length);
-  buffer.erase(std::remove(buffer.begin(), buffer.end(), kTab_Char));
-  buffer.erase(std::remove(buffer.begin(), buffer.end(), kEnter_Char));
-  std::vector<uint8_t> buf(buffer.begin(), buffer.end());
-  auto header = (Header *)buf.data();
-  printf("len: %d type:Code: %d \n", header->len, header->typeCode);
-  try {
-    auto insert_value = (MessageInsert *)buf.data();
-    auto j = nlohmann::json::from_msgpack(insert_value->data);
-    std::cout << j.dump() << j.size() << std::endl;
-  } catch (nlohmann::json::exception const &e) {
-    DB_LOG(error, e.what()) << std::endl;
-  }
-  return buffer;
-}
-
 int BuildReply(char *buffer, int *buffer_size, int return_code,
                std::vector<uint8_t> &pack) {
   MessageReply *reply = nullptr;
@@ -139,7 +121,7 @@ int BuildInsert(char *buffer, size_t *buffer_size, std::vector<uint8_t> &pack) {
 }
 
 // 解析插入消息
-int ExtractInsert(char *buffer, int &insert_num, const char **objs) {
+int ExtractInsert(char *buffer, int &insert_num, char **objs) {
   auto rc = OK;
   auto message = (MessageInsert *)buffer;
   if (message->header.len < sizeof(MessageInsert)) {
@@ -175,7 +157,7 @@ int BuildDelete(char *buffer, size_t *buffer_size, std::vector<uint8_t> &pack) {
 }
 
 // 删除消息包解析
-int ExtractDelete(char *buffer, nlohmann::json &key) {
+int ExtractDelete(const char *buffer, nlohmann::json &key) {
   int rc = OK;
   auto message = (MessageDelete *)buffer;
   if (message->header.len < sizeof(Header)) {
@@ -213,7 +195,7 @@ int BuildQuery(char *buffer, size_t *buffer_size, std::vector<uint8_t> &key) {
   return rc;
 }
 
-int ExtractQuery(char *buffer, nlohmann::json &key) {
+int ExtractQuery(const char *buffer, nlohmann::json &key) {
   int rc = OK;
   auto message = (MessageQuery *)buffer;
   if (message->header.len < sizeof(Header)) {
@@ -243,4 +225,124 @@ std::string Command_Handle(std::string &command) {
   std::vector<std::string> text;
 
   return "";
+}
+
+// remove Tab and Enter character
+int Extract_Buffer(char *argc, size_t length) {
+  auto rc = OK;
+  std::string buffer(argc, argc + length);
+  // reomve 0x020 maigc number
+  if (buffer[buffer.size()]) {
+    buffer.pop_back();
+  }
+  // print a frame data
+  printf("[ ");
+  std::for_each(buffer.begin(), buffer.end(),
+                [](auto &e) { printf("%x ", e); });
+  printf("]\n");
+
+  auto header = (Header *)buffer.data();
+  auto pack_len = header->len;
+  auto header_code = header->typeCode;
+  printf("len: %d type:Code: %d \n", pack_len, header_code);
+
+  if (pack_len < sizeof(Header)) {
+    rc = ErrInvaildArg;
+    goto error;
+  }
+
+  try {
+    if (CODE_INSERT == header_code) {
+      int record_num = 0;
+      char *data = nullptr;
+      DB_LOG(debug, "Insert request received");
+      // int ExtractInsert(char *buffer, int &insert_num, const char **objs);
+      rc = ExtractInsert((char *)buffer.data(), record_num, &data);
+      if (rc) {
+        DB_LOG(error, "Failed to read insert packet");
+        rc = ErrInvaildArg;
+        goto error;
+      }
+      try {
+        auto json_obj = nlohmann::json::from_msgpack(data);
+        std::cout << json_obj.dump() << std::endl;
+        // Use rtnInsert to insert json
+      } catch (nlohmann::json::exception const &e) {
+        DB_LOG(error, e.what());
+        rc = ErrInvaildArg;
+        goto error;
+      }
+    } else if (CODE_QUERY == header_code) {
+      int record_num = 0;
+      // char *key = nullptr;
+      nlohmann::json key;
+      DB_LOG(debug, "query request received");
+      rc = ExtractQuery(buffer.data(), key);
+      if (rc) {
+        DB_LOG(error, "Failed to read query packet");
+        rc = ErrInvaildArg;
+        goto error;
+      }
+      try {
+        // auto json_obj = nlohmann::json::from_msgpack(key);
+        std::cout << key.dump() << std::endl;
+        std::cout << "query condition" << key.dump() << std::endl;
+        // call rtn to query key
+      } catch (nlohmann::json::exception const &e) {
+        DB_LOG(error, e.what());
+        rc = ErrInvaildArg;
+        goto error;
+      }
+    } else if (CODE_DELETE == header_code) {
+      // char *data = nullptr;
+      nlohmann::json key;
+      DB_LOG(debug, "delete request received");
+      rc = ExtractDelete(buffer.data(), key);
+      if (rc) {
+        DB_LOG(error, "Failed to read delete packet");
+        rc = ErrInvaildArg;
+        goto error;
+      }
+      try {
+        // auot json_obj = nlohmann::json::from_msgpack(data);
+        std::cout << "delete condition" << std::endl;
+        std::cout << key.dump() << std::endl;
+      } catch (nlohmann::json::exception const &e) {
+        DB_LOG(error, e.what());
+        rc = ErrInvaildArg;
+        goto error;
+      }
+    } else if (CODE_SNAPSHOT == header_code) {
+      try {
+        int record_num = 0;
+        char *data = nullptr;
+        DB_LOG(debug, "snapshot request request");
+        //
+      } catch (nlohmann::json::exception const &e) {
+        DB_LOG(error, e.what());
+        rc = ErrInvaildArg;
+        goto error;
+      }
+    }
+  } catch (std::exception const &e) {
+    DB_LOG(error, e.what());
+  } catch (nlohmann::json::exception const &e) {
+    DB_LOG(error, e.what());
+  }
+done:
+  // build reply message
+  return rc;
+error:
+  switch (rc) {
+    case ErrInvaildArg: {
+      // DB_LOG(error, "In")
+    } break;
+    case ErrIDNotExist: {
+      DB_LOG(error, "Record does not exist");
+    } break;
+    default:
+      assert(false);
+      break;
+  }
+  goto done;
 }

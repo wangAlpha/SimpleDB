@@ -1,5 +1,4 @@
 {
-    "C_Cpp.default.configurationProvider": "vector-of-bool.cmake-tools",
     "files.associations": {
         "__hash_table": "cpp",
         "__split_buffer": "cpp",

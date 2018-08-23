@@ -38,8 +38,7 @@ class ICommand {
     try {
       pack = nlohmann::json::to_msgpack(message);
       printf("[");
-      std::for_each(pack.begin(), pack.end(),
-                    [](auto &e) { printf("%x ", e); });
+      std::for_each(pack.begin(), pack.end(), [](auto e) { printf("%x ", e); });
       printf("]\n");
     } catch (nlohmann::json::exception const &e) {
       std::cerr << e.what() << std::endl;

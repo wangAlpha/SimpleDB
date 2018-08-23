@@ -9,19 +9,14 @@ using boost::asio::ip::tcp;
 bool Quit = false;
 
 int main(int argc, char *argv[]) {
-  // Options option;
-  // try {
-  //   option.ReadCmd(argc, argv);
-  // } catch (std::exception const &e) {
-  //   std::cerr << e.what() << std::endl;
-  // }
-  // init_log_environment(option.log_path());
+  Options option;
+  option.ReadCmd(argc, argv);
+  init_log_environment(option.log_path());
   try {
     boost::asio::io_service io_service;
-    tcp::acceptor acceptor(io_service,
-                           tcp::endpoint(tcp::v4(), std::atoi(argv[1])));
+    tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v4(), option.port()));
     // Create a thread pool
-    ThreadPool pool(80);
+    ThreadPool pool(option.max_pool());
     while (!Quit) {
       auto socket = std::make_shared<tcp::socket>(io_service);
       acceptor.accept(*socket);
@@ -35,12 +30,16 @@ int main(int argc, char *argv[]) {
           boost::system::error_code ignored_error;
           std::string message = "Hello World";
           auto len = sock->read_some(boost::asio::buffer(buf), err);
+          if (len < sizeof(Header)) {
+            continue;
+          }
+          std::cerr << "recv a message: " << len << std::endl;
           auto command = Extract_Buffer(buf.data(), len);
-          if (command.size() > 0) {
-            auto result = Command_Handle(command);
+          // if (command.size() > 0) {
+            // auto result = Command_Handle(command);
             boost::asio::write(*sock, boost::asio::buffer(message),
                                boost::asio::transfer_all(), ignored_error);
-          }
+          // }
           if (err) {
             DB_LOG(error, err.message());
             return;

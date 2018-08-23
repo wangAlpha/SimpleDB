@@ -42,5 +42,6 @@ constexpr int Err_Recv_Length = -6;
 constexpr int ErrInvaildArg = -7;
 constexpr int ErrPackParse = -8;
 constexpr int ErrSockNotConnect = -9;
-constexpr int  ErrRecvCode = -10;
+constexpr int ErrRecvCode = -10;
 constexpr int ErrRecvLen = -11;
+constexpr int ErrIDNotExist = -12;
