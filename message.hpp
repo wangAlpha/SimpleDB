@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core.h"
-#include "logging.h"
+#include "core.hpp"
+#include "logging.hpp"
 
 #define CODE_REPLY 1
 #define CODE_QUERY 2
@@ -151,6 +151,7 @@ int BuildDelete(char *buffer, size_t *buffer_size, std::vector<uint8_t> &pack) {
   del_pack->header.typeCode = CODE_DELETE;
   del_pack->header.len = size;
   // build del key message
+  *buffer_size = size;
   memcpy((void *)del_pack->key, pack.data(), pack.size());
   printf("len: %ld, CODE: %d\n", size, del_pack->header.typeCode);
   return rc;
@@ -190,6 +191,7 @@ int BuildQuery(char *buffer, size_t *buffer_size, std::vector<uint8_t> &key) {
   // build header
   pack->header.len = size;
   pack->header.typeCode = CODE_QUERY;
+  *buffer_size = size;
   // json oject
   memcpy((void *)pack->key, key.data(), key.size());
   return rc;
@@ -235,28 +237,28 @@ int Extract_Buffer(char *argc, size_t length) {
   if (buffer[buffer.size()]) {
     buffer.pop_back();
   }
-  // print a frame data
-  printf("[ ");
-  std::for_each(buffer.begin(), buffer.end(),
-                [](auto &e) { printf("%x ", e); });
-  printf("]\n");
-
   auto header = (Header *)buffer.data();
   auto pack_len = header->len;
   auto header_code = header->typeCode;
-  printf("len: %d type:Code: %d \n", pack_len, header_code);
 
-  if (pack_len < sizeof(Header)) {
+  if (buffer.size() < sizeof(Header) || header->len < sizeof(Header)) {
     rc = ErrInvaildArg;
     goto error;
   }
 
+  // print a frame data
+  printf("[");
+  std::for_each(buffer.begin(), buffer.end(),
+                [](auto &e) { printf("%x ", e); });
+  printf("]\n");
+
+  printf("len: %d type:Code: %d \n", pack_len, header_code);
   try {
     if (CODE_INSERT == header_code) {
       int record_num = 0;
       char *data = nullptr;
+
       DB_LOG(debug, "Insert request received");
-      // int ExtractInsert(char *buffer, int &insert_num, const char **objs);
       rc = ExtractInsert((char *)buffer.data(), record_num, &data);
       if (rc) {
         DB_LOG(error, "Failed to read insert packet");

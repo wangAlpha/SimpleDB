@@ -1,6 +1,6 @@
-#include "shell.h"
-#include "command.h"
-#include "core.h"
+#include "shell.hpp"
+#include "command.hpp"
+#include "core.hpp"
 
 bool gQuit = false;
 void Shell::prompt() {

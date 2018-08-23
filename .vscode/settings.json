@@ -50,7 +50,9 @@
         "valarray": "cpp",
         "thread": "cpp",
         "__bit_reference": "cpp",
-        "forward_list": "cpp"
+        "forward_list": "cpp",
+        "istream": "cpp",
+        "ostream": "cpp"
     },
     "C_Cpp.configurationWarnings": "Disabled",
     "C_Cpp.intelliSenseEngineFallback": "Enabled"

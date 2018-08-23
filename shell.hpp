@@ -1,7 +1,7 @@
 
 #pragma once
-#include "core.h"
-#include "logging.h"
+#include "core.hpp"
+#include "logging.hpp"
 
 constexpr size_t SEND_BUFFER_SIZE = 4096;
 char Send_Buffer[SEND_BUFFER_SIZE];

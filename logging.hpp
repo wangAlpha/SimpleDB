@@ -22,7 +22,7 @@
 #include <boost/log/utility/setup/formatter_parser.hpp>
 #include <boost/log/utility/setup/from_stream.hpp>
 #include <fstream>
-#include "core.h"
+#include "core.hpp"
 
 namespace logging = boost::log;
 using namespace logging::trivial;

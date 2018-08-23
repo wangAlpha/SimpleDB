@@ -1,9 +1,9 @@
 #pragma once
 
-#include "core.h"
-#include "logging.h"
-#include "message.h"
-#include "shell.h"
+#include "core.hpp"
+#include "logging.hpp"
+#include "message.hpp"
+#include "shell.hpp"
 
 #define COMMAND_QUIT "quit"
 #define COMMAND_INSERT "insert"
@@ -28,7 +28,11 @@ class ICommand {
     header.len = sizeof(header);
     header.typeCode = code;
 
-    client.send((void *)&header, sizeof(header));
+    auto rc = client.send((void *)&header, sizeof(header));
+    if (rc) {
+      return getError(rc);
+    }
+    return rc;
   }
 
   template <class Fn>
@@ -44,12 +48,16 @@ class ICommand {
       std::cerr << e.what() << std::endl;
       return getError(ErrCommand);
     }
-    memset(Send_Buffer, 0, SEND_BUFFER_SIZE);
     auto size = SEND_BUFFER_SIZE;
-    char *send_buffer = Send_Buffer;
-    fun(Send_Buffer, &size, pack);
-    std::cout << "send size " << size << std::endl;
-    ret = client.send((void *)Send_Buffer, size);
+    auto send_buffer = Send_Buffer;
+
+    fun(send_buffer, &size, pack);
+    std::cout << "send size: " << size << std::endl;
+    printf("[");
+    std::for_each(send_buffer, send_buffer + size,
+                  [](auto &e) { printf("%x ", e); });
+    printf("]\n");
+    ret = client.send((void *)send_buffer, size);
     if (ret) {
       return getError(ret);
     }
@@ -146,7 +154,7 @@ class QueryCommand : public ICommand {
       return ret;
     }
     if (message->numReturn) {
-      auto data = nlohmann::json::from_msgpack((char *)&message->data[0]);
+      auto data = nlohmann::json::from_msgpack(message->data);
       std::cout << data.dump() << std::endl;
     }
     return ret;
@@ -201,7 +209,7 @@ class SnapCommand : public ICommand {
     }
     auto json_obj = nlohmann::json();
     try {
-      json_obj = nlohmann::json::from_msgpack((char *)&message->data[0]);
+      json_obj = nlohmann::json::from_msgpack(message->data);
       std::cerr << json_obj.dump() << std::endl;
     } catch (nlohmann::json::exception const &e) {
       std::cerr << e.what() << std::endl;

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core.h"
-#include "filehandle.h"
+#include "core.hpp"
+#include "filehandle.hpp"
 // Mapping files to memory
 class MmapFile {
  public:

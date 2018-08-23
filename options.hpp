@@ -1,5 +1,5 @@
-#include "cmdline.h"
-#include "core.h"
+#include "cmdline.hpp"
+#include "core.hpp"
 
 #define DEFAULT_PORT 80
 #define DEFAULT_DB_PATH "./data.db"
