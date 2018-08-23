@@ -2,23 +2,26 @@
 #include "core.h"
 #include "logging.h"
 #include "message.h"
+#include "options.h"
 #include "threadpool.h"
 
 using boost::asio::ip::tcp;
 bool Quit = false;
 
 int main(int argc, char *argv[]) {
-  if (argc < 2) {
-    std::cerr << "Usage SimpleDB <port>" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  // init_log_environment(DEFAULT_LOG_CONFIG);
+  // Options option;
+  // try {
+  //   option.ReadCmd(argc, argv);
+  // } catch (std::exception const &e) {
+  //   std::cerr << e.what() << std::endl;
+  // }
+  // init_log_environment(option.log_path());
   try {
     boost::asio::io_service io_service;
     tcp::acceptor acceptor(io_service,
                            tcp::endpoint(tcp::v4(), std::atoi(argv[1])));
     // Create a thread pool
-    ThreadPool pool(128);
+    ThreadPool pool(80);
     while (!Quit) {
       auto socket = std::make_shared<tcp::socket>(io_service);
       acceptor.accept(*socket);
