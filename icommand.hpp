@@ -66,6 +66,18 @@ class ICommand {
 
   int getError(int code) {
     if (code != OK) {
+		switch (code) {
+			case OK:
+				break;
+			case ErrConnected: {
+								std::cerr << "net is closeed" << std::endl;
+								   break;
+							   }
+			case err
+			default: {
+						 assert(false);
+					 }
+		}
       std::cerr << "Occur error" << std::endl;
     }
     return code;

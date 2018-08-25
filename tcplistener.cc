@@ -4,6 +4,7 @@
 #include "message.hpp"
 #include "options.hpp"
 #include "threadpool.hpp"
+#include "pcb.hpp"
 
 using boost::asio::ip::tcp;
 bool Quit = false;

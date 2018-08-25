@@ -92,9 +92,10 @@ class DmsFile : public MmapFile {
   ~DmsFile() { Close(); }
 
   int initalize(const char *filename);
-  int insert(nlohmann::json &record, nlohmann::json &out_record, RecordID &rid);
-  int remove(RecordID &rid);
-  int find(RecordID &rid, nlohmann::json &result);
+  int insert(nlohmann::json &record, nlohmann::json &out_record,
+             DmsRecordID &rid);
+  int remove(DmsRecordID &rid);
+  int find(DmsRecordID &rid, nlohmann::json &result);
 
   size_t getNumSegments() const { return body_.size(); }
   size_t getNumPages() const {
@@ -125,7 +126,7 @@ class DmsFile : public MmapFile {
   // load data from beginning
   int load_data();
   // search slot
-  int search_slot(char *page, RecordID &record_id, SlotOff &slot);
+  int search_slot(char *page, DmsRecordID &record_id, SlotOff &slot);
   //
   void recover_space(char *page);
   // update free space
@@ -137,11 +138,10 @@ class DmsFile : public MmapFile {
 };
 
 int DmsFile::insert(nlohmann::json &record, nlohmann::json &out_record,
-                    RecordID &rid) {
+                    DmsRecordID &rid) {
   auto rc = OK;
   PageID page_id = 0;
   char *page = nullptr;
-  // DmsPageHeader *page_header = nullptr;
   int record_size = 0;
   SlotOff offset_tmp = 0;
   DmsRecord record_header;
@@ -254,7 +254,7 @@ error_release_mutex:
   goto done;
 }
 
-int DmsFile::remove(RecordID &rid) {
+int DmsFile::remove(DmsRecordID &rid) {
   auto rc = OK;
 
   std::lock_guard<std::mutex> lock(mutex_);
@@ -292,7 +292,7 @@ done:
   return rc;
 }
 
-int DmsFile::find(RecordID &rid, nlhomann::json &result) {
+int DmsFile::find(DmsRecordID &rid, nlhomann::json &result) {
   auto rc = OK;
   // use read lock the database
   std::lock<std::mutex> lock(mutex_);
@@ -401,7 +401,7 @@ int DmsFile::extend_segments() {
   }
   // push the segment into body list
   body_.push_back(data);
-  header->size += DMS_PAGES_PER_SEGMENT;
+  header_->size += DMS_PAGES_PER_SEGMENT;
   return rc;
 }
 
@@ -411,7 +411,7 @@ int DmsFile::init_new() {
   auto rc = extend_file(DMS_FILE_HEADER_SIZE);
   DB_CHECK(rc, error, "Failed to extend file");
 
-  rc = Map(0, DMS_FILE_HEADER_SIZE, (vodi **)&header_);
+  rc = Map(0, DMS_FILE_HEADER_SIZE, (void **)&header_);
   DB_CHECK(rc, error, "Failed to map");
 
   strcpy(header_->eye_catcher, DMS_HEADER_EYECATCHER);
@@ -445,7 +445,7 @@ done:
   return rc;
 }
 
-int DmsFile::search_slot(char *page, DMsRecordID &rid, SlotOff &slot) {
+int DmsFile::search_slot(char *page, DMsDmsRecordID &rid, SlotOff &slot) {
   auto rc = OK;
   if (!page) {
     DB_LOG(error, "page is nullptr");

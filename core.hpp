@@ -25,6 +25,7 @@
 #include <mutex>
 #include <nlohmann/json.hpp>
 #include <queue>
+#include <shared_mutex>
 #include <stdexcept>
 #include <string>
 #include <thread>
