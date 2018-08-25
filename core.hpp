@@ -45,3 +45,4 @@ constexpr int ErrSockNotConnect = -9;
 constexpr int ErrRecvCode = -10;
 constexpr int ErrRecvLen = -11;
 constexpr int ErrIDNotExist = -12;
+constexpr int ErrSys = -13;
