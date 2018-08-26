@@ -61,6 +61,7 @@ int MmapFile::Map(offsetType offset, const size_t length, void **address) {
     BOOST_LOG_TRIVIAL(error) << "Failed to mmap file " << file_name_;
     return COMMON_ERROR;
   }
+  printf("maping filename -> %s", file_name_.c_str());
   *address = result;
   return OK;
 }

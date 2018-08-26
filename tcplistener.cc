@@ -1,15 +1,11 @@
-#include <boost/asio.hpp>
 #include "core.hpp"
 #include "logging.hpp"
-#include "message.hpp"
 #include "options.hpp"
-#include "pmd.hpp"
 #include "threadpool.hpp"
+#include "handle_message.hpp"
 
 using boost::asio::ip::tcp;
 bool Quit = false;
-
-KRCB *KRCB::krcb_manager_ = nullptr;
 
 int main(int argc, char *argv[]) {
   Options option;
@@ -35,7 +31,7 @@ int main(int argc, char *argv[]) {
           boost::array<char, 4096> buf;
           boost::system::error_code ignored_error;
           auto len = sock->read_some(boost::asio::buffer(buf), err);
-          auto command = Extract_Buffer(buf.data(), len);
+          auto command = HandleMessage(buf.data(), len);
           std::string reply_message = "Successly";
           boost::asio::write(*sock, boost::asio::buffer(reply_message),
                              boost::asio::transfer_all(), ignored_error);

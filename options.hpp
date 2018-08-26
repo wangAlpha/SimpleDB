@@ -39,12 +39,12 @@ class Options {
     config_path_ = parser.get<std::string>("conf");
     svc_name_ = parser.get<std::string>("svc");
 
-    printf("port: %hu\n", port_);
+    printf("port: %hu\t", port_);
     printf("max pool: %lu\n", max_pool_);
-    printf("db data path: %s\n", db_path_.c_str());
-    printf("log config path: %s\n", log_path_.c_str());
-    printf("svc name: %s\n", svc_name_.c_str());
-    printf("config path name: %s\n", config_path_.c_str());
+    printf("svc name: %s\t", svc_name_.c_str());
+    printf("log config path: %s\n",      log_path_.c_str());
+    printf("db data path: %s\t", db_path_.c_str());
+    printf("config path name: %s\n",  config_path_.c_str());
     return OK;
   }
 

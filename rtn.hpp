@@ -4,6 +4,7 @@
 #include "core.hpp"
 #include "dms.hpp"
 
+// run time,provide query select and delete operate
 class RunTime {
  private:
   std::shared_ptr<BucketManager> bucket_manager_;
@@ -67,3 +68,4 @@ int RunTime::remove(nlohmann::json &record) {
   DB_CHECK(rc, error, "Failed to call dms remove");
   return rc;
 }
+

@@ -257,14 +257,13 @@ retry:
 
 int DmsFile::remove(DmsRecordID &rid) {
   auto rc = OK;
-
   std::lock_guard<std::mutex> lock(mutex_);
+
   // find the page in memory
   auto page = pageToOffset(rid.page_id);
   if (!page) {
     DB_LOG(error, "Failed to find the page");
     rc = ErrSys;
-    // goto done;
     return rc;
   }
   // search the given slot
@@ -547,3 +546,4 @@ void DmsFile::recover_space(char *page) {
   }
   page_header->free_space = right - page;
 }
+
