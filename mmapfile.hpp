@@ -11,7 +11,7 @@ class MmapFile {
   int Open(const char *path);
   int Close();
   int Map(offsetType offset, size_t length, void **address);
-  bool isOpen(void) const { return opened_; }
+  bool is_open(void) const { return opened_; }
 
  private:
   struct MmapSegment {
@@ -22,6 +22,7 @@ class MmapFile {
         : ptr(p), length(len), offset(off) {}
   };
 
+ protected:
   bool opened_;
   FileHandleOp file_handle_;
   std::string file_name_;

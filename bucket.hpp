@@ -8,7 +8,7 @@
 #define IXM_HASH_MAP_SIZE 1024
 
 struct ElementHash {
-  const char *data;
+  char *data;
   DmsRecordID record_id;
 };
 
@@ -18,8 +18,8 @@ class BucketManager {
    private:
     // the map is hashNum and eleHash
     std::multimap<unsigned int, ElementHash> bucket_map_;
-    mutable std::shared_mutex shared_mutex_;
-    std::mutex mutex_;
+    mutable boost::shared_mutex shared_mutex_;
+    mutable std::mutex mutex_;
 
    public:
     // get the record whether exist
@@ -79,6 +79,34 @@ int BucketManager::create_index(nlohmann::json &record,
   return rc;
 }
 
+//int find_index(nlohmann::json &record, DmsRecordID &record_id);
+int BucketManager::find_index(nlohmann::json &record, DmsRecordID &record_id){
+	auto rc = OK;
+	uint16_t num = 0;
+	uint16_t random = 0;
+	ElementHash element;
+	rc = process_data(record, record_id, num, element, random);
+	DB_CHECK(rc, error, "Failed to process data");
+	rc = buckets_[random]->find_index(num, element);
+	DB_CHECK(rc, error, "Failed to find index");
+	record_id = element.record_id;
+	return rc;
+}
+
+int BucketManager::remove_index(nlohmann::json &record, DmsRecordID &record_id) {
+	auto rc = OK;
+	uint16_t num = 0;
+	uint16_t random = 0;
+	ElementHash element;
+	rc = process_data(record, record_id, num, element, random);
+	DB_CHECK(rc, error, "Failed to process data");
+	rc = buckets_[random]->find_index(num, element);
+	DB_CHECK(rc, error, "Failed to remove index");
+    record_id.page_id = element.record_id.page_id;
+	record_id.slot_id = element.record_id.slot_id;
+	return rc;
+}
+
 // TODO
 int BucketManager::process_data(nlohmann::json &record, DmsRecordID &record_id,
                                 uint16_t &num, ElementHash &element,
@@ -123,9 +151,9 @@ int BucketManager::Bucket::create_index(uint16_t num, ElementHash &element) {
 int BucketManager::Bucket::find_index(uint16_t num, ElementHash &element) {
   auto rc = OK;
   // TODO use RW mutex
-  std::shared_lock<std::shared_mutex> shared_lock(shared_mutex_);
+  boost::shared_lock<boost::shared_mutex> shared_lock(shared_mutex_);
   auto ret = bucket_map_.equal_range(num);
-  auto source_element = nlohmann::json(element.data);
+  auto source_element = nlohmann::json::from_msgpack(element.data);
   rc = ErrIDNotExist;
   for (auto it = ret.first; it != ret.second; ++it) {
     auto exist_element = it->second;
@@ -147,11 +175,12 @@ int BucketManager::Bucket::remove_index(uint16_t num, ElementHash &element) {
   for (auto it = ret.first; it != ret.second; ++it) {
     auto exist_element = it->second;
     auto dest_element = nlohmann::json::from_msgpack(exist_element.data);
-    if (dest_element != exist_element) {
-      element.record_id = exist_element.record_id;
-      bucket_map_.erase(it);
-      break;
-    }
+    // TODO json compare
+    // if (dest_element != exist_element) {
+    //   element.record_id = exist_element.record_id;
+    //   bucket_map_.erase(it);
+    //   break;
+    // }
   }
   return rc;
 }

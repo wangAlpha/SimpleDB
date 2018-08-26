@@ -3,16 +3,17 @@
 #include "logging.hpp"
 #include "message.hpp"
 #include "options.hpp"
+#include "pmd.hpp"
 #include "threadpool.hpp"
-#include "pcb.hpp"
 
 using boost::asio::ip::tcp;
 bool Quit = false;
 
+auto pmd_manager = KRCB();
 int main(int argc, char *argv[]) {
   Options option;
   option.ReadCmd(argc, argv);
-  init_log_environment(option.log_path());
+  init_log_environment(option.log_file_path());
 
   try {
     boost::asio::io_service io_service;

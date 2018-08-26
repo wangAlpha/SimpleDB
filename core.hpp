@@ -16,6 +16,7 @@
 #include <boost/log/utility/setup/common_attributes.hpp>
 #include <boost/log/utility/setup/console.hpp>
 #include <boost/log/utility/setup/file.hpp>
+#include <boost/thread/shared_mutex.hpp>
 #include <condition_variable>
 #include <cstdio>
 #include <functional>
@@ -25,7 +26,6 @@
 #include <mutex>
 #include <nlohmann/json.hpp>
 #include <queue>
-#include <shared_mutex>
 #include <stdexcept>
 #include <string>
 #include <thread>

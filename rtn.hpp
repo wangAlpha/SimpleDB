@@ -6,8 +6,8 @@
 
 class RunTime {
  private:
-  std::shared_ptr<BucketManager> bucket_manager_();
-  std::shared_ptr<DmsFile> dms_file_();
+  std::shared_ptr<BucketManager> bucket_manager_;
+  std::shared_ptr<DmsFile> dms_file_;
 
  public:
   RunTime() {}
@@ -34,13 +34,13 @@ int RunTime::initialzie(const char *file_name) {
   }
   rc = bucket_manager_->initialize();
   DB_CHECK(rc, error, "Failed to initialize bucket manager");
-  rc = dms_file_->initializa(file_name);
+  rc = dms_file_->initialize(file_name);
   DB_CHECK(rc, error, "Failed to initialize dms file");
   return rc;
 }
 
 int RunTime::insert(nlohmann::json &record) {
-  auto rc = bucket_manager_->is_id_exist(record);
+  auto rc = bucket_manager_->is_ID_exist(record);
   DB_CHECK(rc, error, "Failed to call is_id_exist");
   DmsRecordID record_id;
   nlohmann::json out_record;
@@ -60,10 +60,10 @@ int RunTime::find(nlohmann::json &record, nlohmann::json &out_record) {
 }
 
 int RunTime::remove(nlohmann::json &record) {
-  dmsRecordID record_id;
-  auto rc = bucket_manager_->reomove_index(record, record_id);
-  DB_CHECK(rc, errror, "Failed to call manager remove index");
+  DmsRecordID record_id;
+  auto rc = bucket_manager_->remove_index(record, record_id);
+  DB_CHECK(rc, error, "Failed to call manager remove index");
   rc = dms_file_->remove(record_id);
-  DB_CHECK(rc, errror, "Failed to call dms remove");
+  DB_CHECK(rc, error, "Failed to call dms remove");
   return rc;
 }

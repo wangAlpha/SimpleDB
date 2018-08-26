@@ -1,3 +1,5 @@
+#pragma once
+
 #include "cmdline.hpp"
 #include "core.hpp"
 
@@ -46,9 +48,9 @@ class Options {
     return OK;
   }
 
-  std::string db_path() const { return db_path_; }
-  std::string log_path() const { return log_path_; }
-  std::string conf_path() const { return config_path_; }
+  std::string db_file_path() const { return db_path_; }
+  std::string log_file_path() const { return log_path_; }
+  std::string conf_file_path() const { return config_path_; }
   std::string svc_name() const { return svc_name_; }
   uint16_t port() const { return port_; }
   size_t max_pool() const { return max_pool_; }
