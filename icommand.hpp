@@ -73,9 +73,7 @@ class ICommand {
           std::cerr << "net is closeed" << std::endl;
           break;
         }
-        default: {
-          assert(false);
-        }
+        default: { assert(false); }
       }
       std::cerr << "Occur error" << std::endl;
     }

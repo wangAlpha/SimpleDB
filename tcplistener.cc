@@ -9,12 +9,15 @@
 using boost::asio::ip::tcp;
 bool Quit = false;
 
-auto pmd_manager = KRCB();
+KRCB *KRCB::krcb_manager_ = nullptr;
+
 int main(int argc, char *argv[]) {
   Options option;
   option.ReadCmd(argc, argv);
-  init_log_environment(option.log_file_path());
+  auto pmd_manager = KRCB::get_pmd_manager();
 
+  pmd_manager->init(option);
+  init_log_environment(option.log_file_path());
   try {
     boost::asio::io_service io_service;
     tcp::acceptor acceptor(io_service, tcp::endpoint(tcp::v4(), option.port()));

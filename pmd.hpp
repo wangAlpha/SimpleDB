@@ -14,26 +14,28 @@ class KRCB {
   void set_max_pool(size_t max_pool) { max_pool_ = max_pool; }
 
   RunTime *get_rtn() { return &run_time_manager_; }
-  void init(Options &option);
-  static std::shared_ptr<KRCB> &get_pmd_manager() {
+  // int init(Options const &option);
+  static KRCB *get_pmd_manager() {
     if (!krcb_manager_) {
-      krcb_manager_ = std::make_shared<KRCB>();
+      krcb_manager_ = new KRCB();
     }
     return krcb_manager_;
   }
 
   int init(Options const &option);
 
-  KRCB() {}
-  ~KRCB(){ }
+  KRCB(KRCB const &) = delete;
+  void operator=(KRCB const &) = delete;
+
  private:
   size_t max_pool_;
   std::string data_file_path_;
   std::string log_file_path_;
   std::string svc_name_;
   RunTime run_time_manager_;
+  KRCB(){};
 
-  static std::shared_ptr<KRCB> krcb_manager_;
+  static KRCB *krcb_manager_;
 };
 
 int KRCB::init(Options const &option) {
@@ -43,3 +45,4 @@ int KRCB::init(Options const &option) {
   max_pool_ = option.max_pool();
   return OK;
 }
+

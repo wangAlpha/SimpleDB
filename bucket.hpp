@@ -79,32 +79,33 @@ int BucketManager::create_index(nlohmann::json &record,
   return rc;
 }
 
-//int find_index(nlohmann::json &record, DmsRecordID &record_id);
-int BucketManager::find_index(nlohmann::json &record, DmsRecordID &record_id){
-	auto rc = OK;
-	uint16_t num = 0;
-	uint16_t random = 0;
-	ElementHash element;
-	rc = process_data(record, record_id, num, element, random);
-	DB_CHECK(rc, error, "Failed to process data");
-	rc = buckets_[random]->find_index(num, element);
-	DB_CHECK(rc, error, "Failed to find index");
-	record_id = element.record_id;
-	return rc;
+// int find_index(nlohmann::json &record, DmsRecordID &record_id);
+int BucketManager::find_index(nlohmann::json &record, DmsRecordID &record_id) {
+  auto rc = OK;
+  uint16_t num = 0;
+  uint16_t random = 0;
+  ElementHash element;
+  rc = process_data(record, record_id, num, element, random);
+  DB_CHECK(rc, error, "Failed to process data");
+  rc = buckets_[random]->find_index(num, element);
+  DB_CHECK(rc, error, "Failed to find index");
+  record_id = element.record_id;
+  return rc;
 }
 
-int BucketManager::remove_index(nlohmann::json &record, DmsRecordID &record_id) {
-	auto rc = OK;
-	uint16_t num = 0;
-	uint16_t random = 0;
-	ElementHash element;
-	rc = process_data(record, record_id, num, element, random);
-	DB_CHECK(rc, error, "Failed to process data");
-	rc = buckets_[random]->find_index(num, element);
-	DB_CHECK(rc, error, "Failed to remove index");
-    record_id.page_id = element.record_id.page_id;
-	record_id.slot_id = element.record_id.slot_id;
-	return rc;
+int BucketManager::remove_index(nlohmann::json &record,
+                                DmsRecordID &record_id) {
+  auto rc = OK;
+  uint16_t num = 0;
+  uint16_t random = 0;
+  ElementHash element;
+  rc = process_data(record, record_id, num, element, random);
+  DB_CHECK(rc, error, "Failed to process data");
+  rc = buckets_[random]->find_index(num, element);
+  DB_CHECK(rc, error, "Failed to remove index");
+  record_id.page_id = element.record_id.page_id;
+  record_id.slot_id = element.record_id.slot_id;
+  return rc;
 }
 
 // TODO
