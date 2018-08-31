@@ -17,11 +17,13 @@
 #include <boost/log/utility/setup/console.hpp>
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/thread/shared_mutex.hpp>
+#include <cctype>
 #include <condition_variable>
 #include <cstdio>
 #include <functional>
 #include <future>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <nlohmann/json.hpp>
@@ -45,5 +47,10 @@ constexpr int ErrPackParse = -8;
 constexpr int ErrSockNotConnect = -9;
 constexpr int ErrRecvCode = -10;
 constexpr int ErrRecvLen = -11;
-constexpr int ErrIDNotExist = -12;
-constexpr int ErrSys = -13;
+constexpr int ErrIDExist = -12;
+constexpr int ErrIDNotExist = -13;
+constexpr int ErrSys = -14;
+
+constexpr size_t SEND_BUFFER_SIZE = 4096;
+constexpr size_t RECV_BUFFER_SIZE = 4096;
+constexpr uint8_t MagicNumber = 0x20;

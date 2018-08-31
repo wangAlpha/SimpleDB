@@ -14,7 +14,6 @@ class Command {
 
 // add command map
 Command::Command() {
-  _cmdMap[COMMAND_QUIT] = new QuitCommand();
   _cmdMap[COMMAND_INSERT] = new InsertCommand();
   _cmdMap[COMMAND_CONNECT] = new ConnectCommand();
   _cmdMap[COMMAND_QUERY] = new QueryCommand();
@@ -22,6 +21,8 @@ Command::Command() {
   _cmdMap[COMMAND_DELETE] = new DeleteCommand();
   _cmdMap[COMMAND_TEST] = new TestCommand();
   _cmdMap[COMMAND_SNAPSHOT] = new SnapCommand();
+  _cmdMap[COMMAND_SHUTDOWN] = new ShutdownCommand();
+  _cmdMap[COMMAND_QUIT] = new QuitCommand();
 }
 
 // return a execute class or nullptr

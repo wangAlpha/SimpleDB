@@ -1,0 +1,2 @@
+[2018-08-27 11:19:39.041921] [debug] [0x000029e2] [0x00007ffff2d22700] /home/me/Documents/SimpleDB/handle_message.hpp:59 HandleMessage() Insert request received 
+[2018-08-27 11:21:38.907770] [debug] [0x000029e2] [0x00007ffff2521700] /home/me/Documents/SimpleDB/handle_message.hpp:59 HandleMessage() Insert request received 

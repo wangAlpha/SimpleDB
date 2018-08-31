@@ -3,7 +3,6 @@
 #include "core.hpp"
 #include "logging.hpp"
 
-constexpr size_t SEND_BUFFER_SIZE = 4096;
 char Send_Buffer[SEND_BUFFER_SIZE];
 using boost::asio::ip::tcp;
 class Client {
@@ -37,14 +36,14 @@ class Client {
     if (!check_connected()) {
       throw std::runtime_error("Socket is dissconection!");
     }
-    auto len = socket_->read_some(boost::asio::buffer(buf_), error_);
+    socket_->read_some(boost::asio::buffer(buf_), error_);
     return buf_.data();
   }
   int recv(char *buf, size_t &size) {
     if (!check_connected()) {
       throw std::runtime_error("Socket is dissconection!");
     }
-    size = socket_->read_some(boost::asio::buffer(buf_, size), error_);
+    size = socket_->read_some(boost::asio::buffer(buf, size), error_);
     return OK;
   }
   int send(std::string &message) {

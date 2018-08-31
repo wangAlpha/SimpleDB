@@ -3,7 +3,7 @@
 #include "cmdline.hpp"
 #include "core.hpp"
 
-#define DEFAULT_PORT 80
+#define DEFAULT_PORT 1090
 #define DEFAULT_DB_PATH "./data.db"
 #define DEFAULT_LOG_PATH "./log.cfg"
 #define DEFAULT_CONF_PATH "./db.cfg"
@@ -18,12 +18,12 @@ class Options {
 
   int ReadCmd(int argc, char *argv[]) {
     cmdline::parser parser;
-    parser.add<uint16_t>("port", 'p', "port number", false, 80,
+    parser.add<uint16_t>("port", 'p', "port number", false, DEFAULT_PORT,
                          cmdline::range(1, 65535));
     parser.add<size_t>("pool", 'n', "max thread pool", false, DEFAULT_MAX_POOL,
                        cmdline::range(1, 65535));
     parser.add<std::string>("log", 'l', "log config path", false,
-                            DEFAULT_LOG_CONFIG);
+                            DEFAULT_LOG_PATH);
     parser.add<std::string>("db", 'd', "db data file name", false,
                             DEFAULT_DB_PATH);
     parser.add<std::string>("svc", 's', "svc name", false, DEFAULT_SVC_NAME);
@@ -39,12 +39,12 @@ class Options {
     config_path_ = parser.get<std::string>("conf");
     svc_name_ = parser.get<std::string>("svc");
 
-    printf("port: %hu\t", port_);
+    printf("port: %hu\t\t", port_);
     printf("max pool: %lu\n", max_pool_);
     printf("svc name: %s\t", svc_name_.c_str());
-    printf("log config path: %s\n",      log_path_.c_str());
+    printf("log config path: %s\n", log_path_.c_str());
     printf("db data path: %s\t", db_path_.c_str());
-    printf("config path name: %s\n",  config_path_.c_str());
+    printf("config path name: %s\n", config_path_.c_str());
     return OK;
   }
 

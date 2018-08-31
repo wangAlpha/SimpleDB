@@ -11,10 +11,10 @@
   ((((unsigned int)(((const unsigned char *)(d))[1])) << 8) + \
    (unsigned int)(((const unsigned char *)(d))[0]))
 #endif
-unsigned int ossHash(const char *data, int len) {
+unsigned int HashCode(const char *data, int len) {
   unsigned int hash = len, tmp;
   int rem;
-  if (len <= 0 || data == NULL) return 0;
+  if (len <= 0 || data == nullptr) return 0;
   rem = len & 3;
   len >>= 2;
   for (; len > 0; --len) {

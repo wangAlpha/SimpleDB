@@ -28,7 +28,6 @@ class FileHandleOp {
  private:
   handleType file_handle_;
   std::string file_name_;
-  // DISALLOW_COPY_AND_ASSIGN(FileHandleOp);
   const int kFileFlag = O_RDWR | O_CREAT;
   const int kFileMode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 };
@@ -43,7 +42,7 @@ int FileHandleOp::Open(const char *path) {
     // 读写模式
     file_handle_ = open(path, kFileFlag, kFileMode);
   } while (-1 == file_handle_ && errno == EINTR);
-  return file_handle_;
+  return OK;
 }
 
 // 读取文件
@@ -65,7 +64,7 @@ int FileHandleOp::Read(void *const buf, const size_t size) {
 
 // 写入文件
 int FileHandleOp::Write(const void *buffer, size_t size) {
-  int rc = 0;
+  auto rc = OK;
   size_t current_size = 0;
   if (0 == size) {
     size = strlen((char *)buffer);
@@ -87,7 +86,7 @@ int FileHandleOp::Write(const void *buffer, size_t size) {
     BOOST_LOG_TRIVIAL(error) << "Failed to write file, file is invalid";
     return -1;
   }
-  return current_size;
+  return rc;
 }
 
 // 设置文件句柄

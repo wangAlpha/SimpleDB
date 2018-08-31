@@ -4,7 +4,7 @@
 #include "core.hpp"
 #include "dms.hpp"
 
-// run time,provide query select and delete operate
+// run time, provide query select and delete operate
 class RunTime {
  private:
   std::shared_ptr<BucketManager> bucket_manager_;
@@ -17,22 +17,16 @@ class RunTime {
   int initialzie(const char *file_name);
   int insert(nlohmann::json &reocrd);
   int find(nlohmann::json &record, nlohmann::json &out);
-
   int remove(nlohmann::json &record);
 };
 
 int RunTime::initialzie(const char *file_name) {
   auto rc = OK;
   bucket_manager_ = std::make_shared<BucketManager>();
-  if (!bucket_manager_) {
-    DB_LOG(error, "Failed to new bucket manager");
-    rc = ErrSys;
-    return rc;
-  }
-  dms_file_ = std::make_shared<DmsFile>();
-  if (!dms_file_) {
-    DB_LOG(error, "Failed to new dms file");
-  }
+  ErrCheck(!bucket_manager_, error, ErrSys, "Failed to new bucket manager");
+  // use dms initialize to load database index
+  dms_file_ = std::make_shared<DmsFile>(bucket_manager_);
+  ErrCheck(!dms_file_, error, ErrSys, "Failed to new dms file");
   rc = bucket_manager_->initialize();
   DB_CHECK(rc, error, "Failed to initialize bucket manager");
   rc = dms_file_->initialize(file_name);
@@ -48,6 +42,7 @@ int RunTime::insert(nlohmann::json &record) {
   rc = dms_file_->insert(record, out_record, record_id);
   DB_CHECK(rc, error, "Failed to call dms insert ");
   rc = bucket_manager_->create_index(out_record, record_id);
+  ErrCheck(rc, error, ErrSys, "Failed to call create_index");
   return rc;
 }
 
@@ -68,4 +63,3 @@ int RunTime::remove(nlohmann::json &record) {
   DB_CHECK(rc, error, "Failed to call dms remove");
   return rc;
 }
-

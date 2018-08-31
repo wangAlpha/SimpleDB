@@ -1,8 +1,10 @@
 #pragma once
 #include "core.hpp"
+#include "message.hpp"
 #include "options.hpp"
 #include "rtn.hpp"
-#include "message.hpp"
+
+// use singleton impletement
 class KRCB {
  public:
   std::string data_file_path() const { return data_file_path_; }
@@ -14,9 +16,8 @@ class KRCB {
   void set_max_pool(size_t max_pool) { max_pool_ = max_pool; }
 
   int init(Options const &option);
-
   RunTime *get_rtn() { return &run_time_manager_; }
-  // int init(Options const &option);
+
   static KRCB *get_pmd_manager() {
     if (!krcb_manager_) {
       krcb_manager_ = new KRCB();
@@ -48,4 +49,3 @@ int KRCB::init(Options const &option) {
 }
 
 KRCB *KRCB::krcb_manager_ = nullptr;
-

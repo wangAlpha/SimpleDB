@@ -2,6 +2,7 @@
 
 #include "core.hpp"
 #include "filehandle.hpp"
+
 // Mapping files to memory
 class MmapFile {
  public:
@@ -26,6 +27,7 @@ class MmapFile {
   bool opened_;
   FileHandleOp file_handle_;
   std::string file_name_;
+  // for ummap
   std::vector<MmapSegment> segments_;
   std::mutex mutex_;
 };
@@ -45,8 +47,6 @@ int MmapFile::Map(offsetType offset, const size_t length, void **address) {
   std::lock_guard<std::mutex> lock(mutex_);
   auto file_size = file_handle_.getSize();
   if (file_size < (offsetType)length + offset) {
-    // 需要确定是否减1
-    // auto current_offset = file_handle_.getCurrentOffset();
     printf("current offset %d\n", file_handle_.getCurrentOffset());
     auto len = length + offset - file_handle_.getSize();
     auto tmp = malloc(len);
@@ -61,7 +61,6 @@ int MmapFile::Map(offsetType offset, const size_t length, void **address) {
     BOOST_LOG_TRIVIAL(error) << "Failed to mmap file " << file_name_;
     return COMMON_ERROR;
   }
-  printf("maping filename -> %s", file_name_.c_str());
   *address = result;
   return OK;
 }

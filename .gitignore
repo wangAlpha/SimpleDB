@@ -32,5 +32,9 @@
 *.app
 SimpleDB
 
+data.db
+
+*.log
+
 build/*
-Makefile
+log/*

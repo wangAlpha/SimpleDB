@@ -1,14 +1,14 @@
 #pragma once
-#include <map>
+
 #include "core.hpp"
-#include "dms.hpp"
+#include "hash_code.hpp"
+#include "logging.hpp"
 #include "record.hpp"
 
-#define IXM_KEY_FILELDNAME "_id"
-#define IXM_HASH_MAP_SIZE 1024
-
+constexpr size_t IXM_HASH_MAP_SIZE = 1117;
+extern const char *DMS_KEY_FIELDNAME;
 struct ElementHash {
-  char *data;
+  std::vector<char> data;
   DmsRecordID record_id;
 };
 
@@ -19,7 +19,6 @@ class BucketManager {
     // the map is hashNum and eleHash
     std::multimap<unsigned int, ElementHash> bucket_map_;
     mutable boost::shared_mutex shared_mutex_;
-    mutable std::mutex mutex_;
 
    public:
     // get the record whether exist
@@ -31,8 +30,9 @@ class BucketManager {
 
   std::vector<std::shared_ptr<Bucket>> buckets_;
   // process data
-  int process_data(nlohmann::json &record, DmsRecordID &record_id,  // in
-                   uint16_t &num,                                   // out
+  int process_data(nlohmann::json const &record,
+                   DmsRecordID const &record_id,  // in
+                   uint16_t &hash_num,            // out
                    ElementHash &element, uint16_t &random);
 
  public:
@@ -40,101 +40,110 @@ class BucketManager {
   ~BucketManager() {}
 
   int initialize();
-  int is_ID_exist(nlohmann::json &record);
-  int create_index(nlohmann::json &record, DmsRecordID &record_id);
-  int find_index(nlohmann::json &record, DmsRecordID &record_id);
-  int remove_index(nlohmann::json &record, DmsRecordID &record_id);
+  int is_ID_exist(nlohmann::json const &record);
+  int create_index(nlohmann::json const &record, DmsRecordID &record_id);
+  int find_index(nlohmann::json const &record, DmsRecordID &record_id);
+  int remove_index(nlohmann::json const &record, DmsRecordID &record_id);
 };
 
-int BucketManager::is_ID_exist(nlohmann::json &record) {
-  uint16_t num = 0;
-  uint16_t random = 0;
-  ElementHash element;
-  DmsRecordID record_id;
-  auto rc = process_data(record, record_id, num, element, random);
-  if (rc) {
-    DB_LOG(error, "Failed to process data");
-    rc = ErrSys;
-    return rc;
-  }
-  rc = buckets_[random]->is_ID_exist(num, element);
-  if (rc) {
-    DB_LOG(error, "Failed to create index");
-    rc = ErrSys;
-    return rc;
+int BucketManager::initialize() {
+  auto rc = OK;
+  for (size_t i = 0; i < IXM_HASH_MAP_SIZE; ++i) {
+    buckets_.emplace_back(std::make_shared<Bucket>());
   }
   return rc;
 }
 
-int BucketManager::create_index(nlohmann::json &record,
+int BucketManager::is_ID_exist(nlohmann::json const &record) {
+  uint16_t hash_num = 0;
+  // bucket index
+  uint16_t random = 0;
+  ElementHash hash_element;
+  DmsRecordID record_id;
+  auto rc = process_data(record, record_id, hash_num, hash_element, random);
+  ErrCheck(rc, error, ErrSys, "Failed to process data");
+  rc = buckets_[random]->is_ID_exist(hash_num, hash_element);
+  ErrCheck(rc, error, ErrSys, "Failed to create index");
+  return rc;
+}
+
+int BucketManager::create_index(nlohmann::json const &record,
                                 DmsRecordID &record_id) {
-  uint16_t num = 0;
+  uint16_t hash_num = 0;
   uint16_t random = 0;
   ElementHash element;
-  auto rc = process_data(record, record_id, num, element, random);
+  auto rc = process_data(record, record_id, hash_num, element, random);
   DB_CHECK(rc, error, "Failed to process data");
-  rc = buckets_[random]->create_index(num, element);
+  rc = buckets_[random]->create_index(hash_num, element);
   DB_CHECK(rc, error, "Failed to create index");
   record_id = element.record_id;
   return rc;
 }
 
-// int find_index(nlohmann::json &record, DmsRecordID &record_id);
-int BucketManager::find_index(nlohmann::json &record, DmsRecordID &record_id) {
+int BucketManager::find_index(nlohmann::json const &record,
+                              DmsRecordID &record_id) {
   auto rc = OK;
-  uint16_t num = 0;
+  uint16_t hash_num = 0;
   uint16_t random = 0;
   ElementHash element;
-  rc = process_data(record, record_id, num, element, random);
+  rc = process_data(record, record_id, hash_num, element, random);
   DB_CHECK(rc, error, "Failed to process data");
-  rc = buckets_[random]->find_index(num, element);
+  rc = buckets_[random]->find_index(hash_num, element);
   DB_CHECK(rc, error, "Failed to find index");
   record_id = element.record_id;
   return rc;
 }
 
-int BucketManager::remove_index(nlohmann::json &record,
+int BucketManager::remove_index(nlohmann::json const &record,
                                 DmsRecordID &record_id) {
   auto rc = OK;
-  uint16_t num = 0;
+  uint16_t hash_num = 0;
   uint16_t random = 0;
   ElementHash element;
-  rc = process_data(record, record_id, num, element, random);
+  rc = process_data(record, record_id, hash_num, element, random);
   DB_CHECK(rc, error, "Failed to process data");
-  rc = buckets_[random]->find_index(num, element);
+  rc = buckets_[random]->remove_index(hash_num, element);
   DB_CHECK(rc, error, "Failed to remove index");
+  // return record_id
   record_id.page_id = element.record_id.page_id;
   record_id.slot_id = element.record_id.slot_id;
   return rc;
 }
 
-// TODO
-int BucketManager::process_data(nlohmann::json &record, DmsRecordID &record_id,
-                                uint16_t &num, ElementHash &element,
+// get hash code and record data
+int BucketManager::process_data(nlohmann::json const &record,
+                                DmsRecordID const &record_id,
+                                uint16_t &hash_num, ElementHash &hash_element,
                                 uint16_t &random) {
   auto rc = OK;
-  // get k id
-  // check if _id exist and correct
-  //
-  // value
-  // num = HashCode()
-  random = num % IXM_HASH_MAP_SIZE;
-  // element.data = value;
-  // element.record_id = record_id;
+  std::string element;
+  try {
+    element = record[DMS_KEY_FIELDNAME];
+  } catch (nlohmann::json::exception const &e) {
+    DB_LOG(error, e.what());
+    return ErrInvaildArg;
+  }
+  hash_num = HashCode(element.c_str(), element.size());
+  random = hash_num % IXM_HASH_MAP_SIZE;
+  std::copy(element.begin(), element.end(),
+            std::back_inserter(hash_element.data));
+  hash_element.record_id = record_id;
   return rc;
 }
 
-int BucketManager::Bucket::is_ID_exist(uint16_t num, ElementHash &element) {
+// find hash element in bucket
+int BucketManager::Bucket::is_ID_exist(uint16_t const hash_num,
+                                       ElementHash &element) {
   auto rc = OK;
-  std::lock_guard<std::mutex> lock(mutex_);
-  auto ret = bucket_map_.equal_range(num);
-  auto source_element = nlohmann::json::from_msgpack(element.data);
-  // Understand the loop
+  boost::shared_lock<boost::shared_mutex> read_lock(shared_mutex_);
+  auto ret = bucket_map_.equal_range(hash_num);
+  nlohmann::json source_element;
+  // compare key
   for (auto it = ret.first; it != ret.second; ++it) {
     auto exist_element = it->second;
-    auto dest_element = nlohmann::json::from_msgpack(element.data);
-    if (source_element != dest_element) {
-      rc = ErrIDNotExist;
+    if (exist_element.data.size() == element.data.size() &&
+        exist_element.data == element.data) {
+      rc = ErrIDExist;
       DB_LOG(error, "record id does exist");
       break;
     }
@@ -142,24 +151,24 @@ int BucketManager::Bucket::is_ID_exist(uint16_t num, ElementHash &element) {
   return rc;
 }
 
-int BucketManager::Bucket::create_index(uint16_t num, ElementHash &element) {
+int BucketManager::Bucket::create_index(uint16_t hash_num,
+                                        ElementHash &element) {
   auto rc = OK;
-  std::lock_guard<std::mutex> lock(mutex_);
-  bucket_map_.insert(std::pair<uint16_t, ElementHash>(num, element));
+  // write lock
+  boost::unique_lock<boost::shared_mutex> write_lock(shared_mutex_);
+  bucket_map_.insert(std::pair<uint16_t, ElementHash>(hash_num, element));
   return rc;
 }
 
-int BucketManager::Bucket::find_index(uint16_t num, ElementHash &element) {
+int BucketManager::Bucket::find_index(uint16_t hash_num, ElementHash &element) {
   auto rc = OK;
-  // TODO use RW mutex
-  boost::shared_lock<boost::shared_mutex> shared_lock(shared_mutex_);
-  auto ret = bucket_map_.equal_range(num);
-  auto source_element = nlohmann::json::from_msgpack(element.data);
+  boost::shared_lock<boost::shared_mutex> read_lock(shared_mutex_);
+  auto ret = bucket_map_.equal_range(hash_num);
   rc = ErrIDNotExist;
   for (auto it = ret.first; it != ret.second; ++it) {
     auto exist_element = it->second;
-    auto dest_element = nlohmann::json::from_msgpack(exist_element.data);
-    if (dest_element == source_element) {
+    if (exist_element.data.size() == element.data.size() &&
+        exist_element.data == element.data) {
       element.record_id = exist_element.record_id;
       rc = OK;
       break;
@@ -169,27 +178,20 @@ int BucketManager::Bucket::find_index(uint16_t num, ElementHash &element) {
   return rc;
 }
 
-int BucketManager::Bucket::remove_index(uint16_t num, ElementHash &element) {
+int BucketManager::Bucket::remove_index(uint16_t hash_num,
+                                        ElementHash &element) {
   auto rc = OK;
-  std::lock_guard<std::mutex> lock(mutex_);
-  auto ret = bucket_map_.equal_range(num);
+  boost::unique_lock<boost::shared_mutex> write_lock(shared_mutex_);
+  auto ret = bucket_map_.equal_range(hash_num);
   for (auto it = ret.first; it != ret.second; ++it) {
     auto exist_element = it->second;
-    auto dest_element = nlohmann::json::from_msgpack(exist_element.data);
-    // TODO json compare
-    // if (dest_element != exist_element) {
-    //   element.record_id = exist_element.record_id;
-    //   bucket_map_.erase(it);
-    //   break;
-    // }
+    if (exist_element.data == element.data) {
+      element.record_id = exist_element.record_id;
+      bucket_map_.erase(it);
+      return rc;
+    }
   }
-  return rc;
-}
-
-int BucketManager::initialize() {
-  auto rc = OK;
-  for (size_t i = 0; i < IXM_HASH_MAP_SIZE; ++i) {
-    buckets_.emplace_back(std::make_shared<Bucket>());
-  }
+  rc = ErrInvaildArg;
+  DB_LOG(error, "record _id does not exist");
   return rc;
 }

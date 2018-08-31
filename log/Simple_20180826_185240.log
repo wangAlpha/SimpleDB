@@ -1,0 +1,2 @@
+[2018-08-26 18:52:40.909055] [error] [0x00000e22] [0x00007ffff2d22700] /home/me/Documents/SimpleDB/handle_message.hpp:72 HandleMessage() [json.exception.parse_error.110] parse error at 11: expected end of input 
+[2018-08-26 18:52:40.909342] [error] [0x00000e22] [0x00007ffff2d22700] /home/me/Documents/SimpleDB/handle_message.hpp:27 operator()() Argument error 

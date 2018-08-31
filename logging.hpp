@@ -37,9 +37,18 @@ using namespace logging::trivial;
 
 #define DB_CHECK(cond, level, message) \
   do {                                 \
-    if (!cond) {                       \
+    if (cond) {                        \
       DB_LOG(level, message);          \
     }                                  \
+  } while (0)
+
+// severity_level
+#define ErrCheck(cond, level, err_code, message) \
+  do {                                           \
+    if (cond) {                                  \
+      DB_LOG(level, message);                    \
+      return (err_code);                         \
+    }                                            \
   } while (0)
 
 bool init_log_environment(std::string cfg = DEFAULT_LOG_CONFIG) {

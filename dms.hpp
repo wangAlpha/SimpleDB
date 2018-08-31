@@ -1,44 +1,25 @@
 #pragma once
 
+#include "bucket.hpp"
 #include "core.hpp"
 #include "logging.hpp"
+#include "message.hpp"
 #include "mmapfile.hpp"
 #include "record.hpp"
-
-#define DMS_EXTEND_SIZE 65536
-// 4MB for page size
-#define DMS_PAGE_SIZE 1024 * 4096
-#define DMS_MAX_RECORD \
-  (DMS_PAGE_SIZE - sizeof(Header) - sizeof(Record) - sizeof(SlotOff))
-#define DMS_MAX_PAGES 1024 * 256
-using SlotOff = unsigned int;
-#define DMS_INVALID_SLOTID 0xFFFFFFFF
-#define DMS_INVALID_PAGEID 0xFFFFFFFF
-
-#define DMS_KEY_FIELDNAME "_id"
-
-// each record has the following header, include 4 bytes size and 4 bytes flag
-#define DMS_RECORD_FLAG_NORMAL 0
-#define DMS_RECORD_FLAG_DROPPED 1
-
 struct DmsRecord {
-  uint16_t size;
-  uint16_t flag;
+  uint32_t size;
+  uint32_t flag;
   char data[0];
 };
 
 // dms header
-#define DMS_HEADER_EYECATCHER "DMSH"
-#define DMS_HEADER_EYECATCHER_LEN 4
-#define DMS_HEADER_FLAG_NORMAL 0
-#define DMS_HEADER_FLAG_DROPPED 1
-
-#define DMS_HEADER_VERSION 0
-#define DMS_HEADER_VERSION_CURRENT DMS_HEADER_VERSION
-
+const char *DMS_HEADER_EYECATCHER = "DMSH";
+constexpr size_t DMS_HEADER_EYECATCHER_LEN = 4;
+constexpr uint32_t DMS_HEADER_FLAG_NORMAL = 0;
+constexpr uint32_t DMS_HEADER_FLAG_DROPPED = 1;
 struct DmsHeader {
   char eye_catcher[DMS_HEADER_EYECATCHER_LEN];
-  uint16_t size;
+  uint32_t size;
   uint16_t flag;
   uint16_t version;
 };
@@ -56,56 +37,71 @@ PAGE STRUCTURE
 | Data           |
 ------------------
 --------------------------*/
-#define DMS_PAGE_EYECATCHER "PAGH"
-#define DMS_PAGE_EYECATCHER_LEN 4
-#define DMS_PAGE_FLAG_NORMAL 0
-#define DMS_PAGE_FLAG_UNALLOC 1
-#define DMS_SLOT_EMPTY 0xFFFFFFFF
+using SlotOff = unsigned int;
+constexpr size_t DMS_EXTEND_SIZE = 65536ul;
+// 4MB for page size
+constexpr size_t DMS_PAGE_SIZE = 1024 * 1024ul * 4;
+constexpr size_t DMS_MAX_RECORD =
+    (DMS_PAGE_SIZE - sizeof(DmsHeader) - sizeof(DmsRecord) - sizeof(SlotOff));
+constexpr size_t DMS_MAX_PAGES = 1024 * 256ul;
+constexpr SlotOff DMS_INVALID_SLOTID = 0xFFFFFFFF;
+constexpr SlotOff DMS_INVALID_PAGEID = 0xFFFFFFFF;
+
+const char *DMS_KEY_FIELDNAME = "_id";
+
+// each record has the following header, include 4 bytes size and 4 bytes flag
+constexpr uint32_t DMS_RECORD_FLAG_NORMAL = 0;
+constexpr uint32_t DMS_RECORD_FLAG_DROPPED = 1;
+
+constexpr uint32_t DMS_HEADER_VERSION = 0;
+constexpr uint32_t DMS_HEADER_VERSION_CURRENT = DMS_HEADER_VERSION;
+
+const char *DMS_PAGE_EYECATCHER = "PAGH";
+constexpr size_t DMS_PAGE_EYECATCHER_LEN = 4;
+constexpr uint32_t DMS_PAGE_FLAG_NORMAL = 0;
+constexpr uint32_t DMS_PAGE_FLAG_UNALLOC = 1;
+constexpr SlotID DMS_SLOT_EMPTY = 0xFFFFFFFF;
 
 struct DmsPageHeader {
   char eye_catcher[DMS_PAGE_EYECATCHER_LEN];
-  uint16_t size;
-  uint16_t flag;
-  uint16_t num_slots;
-  uint16_t slot_offset;
-  uint16_t free_space;
-  uint16_t free_offset;
+  uint32_t size;
+  uint32_t flag;
+  uint32_t num_slots;
+  uint32_t slot_offset;
+  uint32_t free_space;
+  uint32_t free_offset;
   char data[0];
 };
 
-#define DMS_FILE_SEGMENT_SIZE 65536 * 2048
-#define DMS_FILE_HEADER_SIZE 65536
-#define DMS_PAGES_PER_SEGMENT (DMS_FILE_SEGMENT_SIZE / DMS_PAGE_SIZE)
-#define DMS_MAX_SEGMENTS (DMS_MAX_SEGMENTS / DMS_PAGES_PER_SEGMENT)
+constexpr size_t DMS_FILE_SEGMENT_SIZE = 1024 * 1024ul * 128;
+constexpr size_t DMS_FILE_HEADER_SIZE = 1024ul * 64;
+constexpr size_t DMS_PAGES_PER_SEGMENT = DMS_FILE_SEGMENT_SIZE / DMS_PAGE_SIZE;
+constexpr size_t DMS_MAX_SEGMENTS =
+    DMS_PAGES_PER_SEGMENT / DMS_PAGES_PER_SEGMENT;
 
+// Data management system
 class DmsFile : public MmapFile {
  public:
-  DmsHeader *header_;
-  std::vector<char *> body_;
-  // free space to page id map
-  std::multimap<uint16_t, PageID> free_space_map_;
-  std::mutex mutex_;
-  std::mutex extend_mutex_;
-  std::string file_name_;
-
-  explicit DmsFile() : header_(nullptr) {}
-  ~DmsFile() { Close(); }
+  explicit DmsFile(std::shared_ptr<BucketManager> &bucket_manager)
+      : header_(nullptr), bucket_manager_(bucket_manager) {}
+  ~DmsFile() {}
 
   int initialize(const char *filename);
-  int insert(nlohmann::json &record, nlohmann::json &out_record,
+  int insert(nlohmann::json const &record, nlohmann::json &out_record,
              DmsRecordID &rid);
-  int remove(DmsRecordID &rid);
-  int find(DmsRecordID &rid, nlohmann::json &result);
+  int remove(DmsRecordID const &rid);
+  int find(DmsRecordID const &rid, nlohmann::json &result);
 
-  size_t getNumSegments() const { return body_.size(); }
+  size_t getNumSegments() const { return segments_.size(); }
   size_t getNumPages() const {
     return getNumSegments() * DMS_PAGES_PER_SEGMENT;
   }
+
   char *pageToOffset(PageID page_id) {
     if (page_id >= getNumPages()) {
       return nullptr;
     } else {
-      return body_[page_id / DMS_PAGES_PER_SEGMENT] +
+      return segments_[page_id / DMS_PAGES_PER_SEGMENT] +
              DMS_PAGE_SIZE * (page_id % DMS_PAGES_PER_SEGMENT);
     }
   }
@@ -119,15 +115,29 @@ class DmsFile : public MmapFile {
   }
 
  private:
+  DmsHeader *header_;
+  // store file segement
+  std::vector<char *> segments_;
+  // free space to page id map
+  std::multimap<uint16_t, PageID> free_space_map_;
+  // RW mutex
+  boost::shared_mutex shared_mutex_;
+  std::string file_name_;
+  std::shared_ptr<BucketManager> bucket_manager_;
+
   // create a new segment for the current file
   int extend_segment();
   // init from empty file, creating header only
   int init_new();
+  // extend the file for given bytes
+  int extend_file(int const size);
   // load data from beginning
-  int load_data();
+  int map_segments();
+  // load data to index
+  int load_data(char *segment);
   // search slot
-  int search_slot(char *page, DmsRecordID &record_id, SlotOff &slot);
-  //
+  int search_slot(char *page, DmsRecordID const &record_id, SlotOff &slot);
+  // recover space
   void recover_space(char *page);
   // update free space
   void update_free_space(DmsPageHeader *header, int change_size,
@@ -135,83 +145,49 @@ class DmsFile : public MmapFile {
   // find a page id to insert, return invalid page id if there's no page cache
   // found for required size bytes
   PageID find_page(size_t required_size);
-  int extend_file(int size);
 };
 
-int DmsFile::insert(nlohmann::json &record, nlohmann::json &out_record,
+int DmsFile::insert(nlohmann::json const &record, nlohmann::json &out_record,
                     DmsRecordID &rid) {
   auto rc = OK;
-  PageID page_id = 0;
-  char *page = nullptr;
-  int record_size = 0;
-  SlotOff offset_tmp = 0;
-  DmsRecord record_header;
 
-  try {
-    auto record_buffer = nlohmann::json::to_msgpack(record);
-    record_size = record_buffer.size();
-  } catch (nlohmann::json::exception const &e) {
-    DB_LOG(error, e.what());
-    rc = ErrPackParse;
-    // goto done;
-    return rc;
-  }
-
+  auto record_pack = JsonToMsgpack(record);
+  auto record_size = record_pack.size();
+  ErrCheck(record_size == 0, error, ErrPackParse, "json serilize fail");
+  // check record size
+  ErrCheck(record_size > DMS_MAX_RECORD, error, ErrInvaildArg,
+           "record cannot bigger than 4MB");
   // make sure _id exists
-  if (record.find(DMS_KEY_FIELDNAME) == record.end()) {
-    rc = ErrInvaildArg;
-    DB_LOG(error, "record must be with id");
-    // goto done;
-    return rc;
-  }
+  // ErrCheck(record.find(DMS_KEY_FIELDNAME) == record.end(), error,
+  // ErrInvaildArg, "record must be with _id");
+  boost::unique_lock<boost::shared_mutex> write_lock(shared_mutex_);
 retry:
-  // lock the database
-  mutex_.lock();
-  // and then we should get the required record size
-  page_id = find_page(record_size + sizeof(DmsRecord));
-  // if there's not enough space in any existing page, let's release db lock
-  // and try to allocate a new segment by calling extend_segment
+  auto page_id = find_page(record_size + sizeof(DmsRecord));
   if (DMS_INVALID_PAGEID == page_id) {
-    mutex_.unlock();
-    // release db lock
-    if (extend_mutex_.try_lock()) {
-      rc = extend_segment();
-      if (rc) {
-        DB_LOG(error, "Failed to extend segment");
-        extend_mutex_.unlock();
-        // goto done;
-        return rc;
-      }
-    } else {
-      // if we cannot get the extendmutex, that means someone else is trying to
-      // extend so let's wait until getting the mutex, and release it and try
-      // again
-      extend_mutex_.lock();
-    }
-    extend_mutex_.unlock();
+    // try to extend segment
+    rc = extend_segment();
+    ErrCheck(rc, error, ErrSys, "Failed to extend segment");
     goto retry;
   }
+
   // find the in-memeory offset for the page
-  page = pageToOffset(page_id);
-  // if something wrong, let's return error
-  if (!page) {
-    DB_LOG(error, "Failed to find the page");
-    rc = ErrSys;
-    mutex_.unlock();
-    return rc;
-    // goto error_release_mutex;
-  }
+  auto page = pageToOffset(page_id);
+  ErrCheck(page == nullptr, error, ErrSys, "Failed to find the page");
   // set page header
-  auto page_header = (DmsPageHeader *)(page);
-  if (memcmp(reinterpret_cast<void *>(page_header), DMS_PAGE_EYECATCHER,
-             DMS_PAGE_EYECATCHER_LEN) != 0) {
-    DB_LOG(error, "Invalid page header");
-    rc = ErrSys;
-    // goto error_release_mutex;
-    mutex_.unlock();
-    return rc;
+  auto page_header = (DmsPageHeader *)page;
+  ErrCheck((memcmp((void *)page_header, DMS_PAGE_EYECATCHER,
+                   DMS_PAGE_EYECATCHER_LEN) != 0),
+           error, ErrSys, "Invalid page header");
+  // if there's no free space excluding holes
+  if ((page_header->free_space >
+       page_header->free_offset - page_header->slot_offset) &&
+      (page_header->slot_offset + record_size + sizeof(DmsRecord) +
+           sizeof(SlotID) >
+       page_header->free_offset)) {
+    // recover empty hold from page
+    recover_space(page);
   }
-  // slots offset is the lase bytes of slots;
+  // slots offset is the last bytes of slots;
   // free offset is the first byte of data
   // so freeOffset - slotOffset is the actual free space excluding holes
   if ((page_header->free_space <
@@ -220,25 +196,26 @@ retry:
        record_size + sizeof(DmsRecord) + sizeof(SlotID))) {
     DB_LOG(error, "Something big wrong!!");
     rc = ErrSys;
-    mutex_.unlock();
     return rc;
-    // goto error_release_mutex;
   }
-  offset_tmp = page_header->free_offset - record_size - sizeof(DmsRecord);
+  auto offset_tmp = page_header->free_offset - record_size - sizeof(DmsRecord);
+  DmsRecord record_header;
   record_header.size = record_size + sizeof(DmsRecord);
   record_header.flag = DMS_RECORD_FLAG_NORMAL;
   // copy the slot
   *(SlotOff *)(page + sizeof(DmsPageHeader) +
                page_header->num_slots * sizeof(SlotOff)) = offset_tmp;
   // copy the header
-  auto pack_buffer = nlohmann::json::to_msgpack(record);
-  memcpy(page + offset_tmp + sizeof(DmsRecord), pack_buffer.data(),
-         record_size);
-  out_record =
-      nlohmann::json::from_msgpack(page + offset_tmp + sizeof(DmsRecord));
+  // FIX
+  memcpy(page + offset_tmp, (char *)&record_header, sizeof(DmsRecord));
+  // copy the body
+  auto store_postion = page + offset_tmp + sizeof(DmsRecord);
+  memcpy(store_postion, (char *)record_pack.data(), record_size);
+  out_record = MsgpackToJson(store_postion);
+
   rid.page_id = page_id;
   rid.slot_id = page_header->num_slots;
-  // modiy metadata in page
+  // modify metadata in page
   page_header->num_slots++;
   page_header->slot_offset += sizeof(SlotID);
   page_header->free_offset = offset_tmp;
@@ -246,48 +223,29 @@ retry:
   update_free_space(page_header,
                     -(record_size + sizeof(SlotID) + sizeof(DmsRecord)),
                     page_id);
-  // release lock for database
-  mutex_.unlock();
-  // done:
   return rc;
-  // error_release_mutex:
-  // mutex_.unlock();
-  // goto done;
 }
 
-int DmsFile::remove(DmsRecordID &rid) {
+int DmsFile::remove(DmsRecordID const &rid) {
   auto rc = OK;
-  std::lock_guard<std::mutex> lock(mutex_);
 
+  boost::unique_lock<boost::shared_mutex> write_lock(shared_mutex_);
   // find the page in memory
   auto page = pageToOffset(rid.page_id);
-  if (!page) {
-    DB_LOG(error, "Failed to find the page");
-    rc = ErrSys;
-    return rc;
-  }
+  ErrCheck(!page, error, ErrSys, "Failed to find the page");
   // search the given slot
   SlotOff slot = 0;
   rc = search_slot(page, rid, slot);
-  if (rc) {
-    DB_LOG(error, "Failed to search slot");
-    rc = ErrSys;
-    // goto done;
-    return rc;
-  }
-  if (DMS_SLOT_EMPTY == slot) {
-    DB_LOG(error, "The record is dropped");
-    rc = ErrSys;
-    // goto done;
-    return rc;
-  }
+  ErrCheck(rc, error, ErrSys, "Failed to searc slot");
+  ErrCheck((DMS_SLOT_EMPTY == slot), error, ErrSys, "The record is dropped");
+
   // set page header
-  auto page_header = reinterpret_cast<DmsPageHeader *>(page);
+  auto page_header = (DmsPageHeader *)page;
   // set slot to empty
   *(SlotID *)(page + sizeof(DmsPageHeader) + rid.slot_id * sizeof(SlotID)) =
       DMS_SLOT_EMPTY;
   // set record header
-  auto record_header = reinterpret_cast<DmsRecord *>(page + slot);
+  auto record_header = (DmsRecord *)(page + slot);
   record_header->flag = DMS_RECORD_FLAG_DROPPED;
   // update database metadata
   update_free_space(page_header, record_header->size, rid.page_id);
@@ -295,38 +253,24 @@ int DmsFile::remove(DmsRecordID &rid) {
   return rc;
 }
 
-int DmsFile::find(DmsRecordID &rid, nlohmann::json &result) {
+int DmsFile::find(DmsRecordID const &rid, nlohmann::json &result) {
   auto rc = OK;
   // use read lock the database
-  std::lock_guard<std::mutex> lock(mutex_);
-  SlotOff slot;
+  boost::shared_lock<boost::shared_mutex> read_lock(shared_mutex_);
   // goto the page and verify the slot is valid
-  auto page = pageToOffset(rid.slot_id);
-  if (!page) {
-    DB_LOG(error, "Failed to find the page");
-    rc = ErrSys;
-    // goto done;
-    return rc;
-  }
+  auto page = pageToOffset(rid.page_id);
+  ErrCheck((!page), error, ErrSys, "Failed to find the page");
   // if slot is empty, something big wrong
+  SlotOff slot;
   rc = search_slot(page, rid, slot);
-  if (DMS_SLOT_EMPTY == slot) {
-    DB_LOG(error, "Failed to find the page");
-    rc = ErrSys;
-    // goto done;
-    return rc;
-  }
+  ErrCheck((DMS_SLOT_EMPTY == slot), error, ErrSys, "Failed to find the page");
   // get the record header
-  auto record_header = reinterpret_cast<DmsRecord *>(page + slot);
+  auto record_header = (DmsRecord *)(page + slot);
   // if record_header->flag is dropped, this record is dropped already
-  if (DMS_RECORD_FLAG_DROPPED == record_header->flag) {
-    DB_LOG(error, "The data is dropped");
-    rc = ErrSys;
-    // goto done;
-    return rc;
-  }
-  result = nlohmann::json::from_msgpack(page + slot + sizeof(DmsRecord));
-  // done:
+  ErrCheck((DMS_RECORD_FLAG_DROPPED == record_header->flag), error, ErrSys,
+           "The data is dropped");
+  auto data = page + slot + sizeof(DmsRecord);
+  result = MsgpackToJson(data);
   return rc;
 }
 
@@ -335,7 +279,6 @@ void DmsFile::update_free_space(DmsPageHeader *header, int chang_size,
   auto free_space = header->free_space;
   auto ret = free_space_map_.equal_range(free_space);
 
-  // for (auto &it : ret) {
   for (auto it = ret.first; it != ret.second; ++it) {
     if (it->second == page_id) {
       free_space_map_.erase(it);
@@ -349,43 +292,39 @@ void DmsFile::update_free_space(DmsPageHeader *header, int chang_size,
 }
 
 int DmsFile::initialize(const char *file_name) {
-  offsetType offset = 0;
   int rc = OK;
   file_name_ = file_name;
   rc = Open(file_name);
   DB_CHECK(rc, error, "Failed to open file");
 getfilesize:
   // get file size
-  // rc = file_handle_.getSize(&offset);
-  offset = file_handle_.getSize();
+  auto offset = file_handle_.getSize();
   // if file size is 0, that means it's newly created file and we should
   // initailize it
   if (!offset) {
     rc = init_new();
-    DB_CHECK(rc, error, "Failed to initialize file");
+    ErrCheck(rc, error, ErrSys, "Failed to initialize file");
     goto getfilesize;
   }
-  // load data
-  rc = load_data();
-  DB_CHECK(rc, error, "Failed to load data");
-  // done:
+  rc = map_segments();
+  ErrCheck(rc, error, ErrSys, "Failed to load data");
+
   return rc;
 }
 
-// caller must hold extend latch
+// extend a new segment
 int DmsFile::extend_segment() {
   // extend a new segment
-  offsetType offset = 0;
-  auto rc = file_handle_.getSize();
-  DB_CHECK(rc, error, "Failed to get file size");
+  auto rc = OK;
+  auto offset = file_handle_.getSize();
 
   // first let's get the size of file before extend
   rc = extend_file(DMS_FILE_SEGMENT_SIZE);
   DB_CHECK(rc, error, "Failed to extend segment");
 
   // map from original end to new end
-  char *data = nullptr;
-  rc = Map(offset, DMS_FILE_SEGMENT_SIZE, (void **)&data);
+  char *segment = nullptr;
+  rc = Map(offset, DMS_FILE_SEGMENT_SIZE, (void **)&segment);
 
   // create page header structure and we are going to copy to each page
   DmsPageHeader page_header;
@@ -394,12 +333,11 @@ int DmsFile::extend_segment() {
   page_header.flag = DMS_PAGE_FLAG_NORMAL;
   page_header.num_slots = 0;
   page_header.slot_offset = sizeof(DmsPageHeader);
-  page_header.free_space =
-      (uint16_t)((size_t)DMS_PAGE_SIZE - sizeof(DmsPageHeader));
-  page_header.free_offset = (uint16_t)DMS_PAGE_SIZE;
+  page_header.free_space = (DMS_PAGE_SIZE - sizeof(DmsPageHeader));
+  page_header.free_offset = DMS_PAGE_SIZE;
   // copy header to each page
   for (size_t i = 0; i < DMS_FILE_SEGMENT_SIZE; i += DMS_PAGE_SIZE) {
-    memcpy(data + i, (char *)&page_header, sizeof(DmsPageHeader));
+    memcpy(segment + i, (char *)&page_header, sizeof(DmsPageHeader));
   }
 
   // free space handling
@@ -407,22 +345,23 @@ int DmsFile::extend_segment() {
   // insert into free space map
   for (size_t i = 0; i < DMS_PAGES_PER_SEGMENT; ++i) {
     free_space_map_.insert(
-        std::pair<uint16_t, PageID>(page_header.free_space, i + free_map_size));
+        std::make_pair(page_header.free_space, i + free_map_size));
   }
   // push the segment into body list
-  body_.push_back(data);
+  segments_.push_back(segment);
   header_->size += DMS_PAGES_PER_SEGMENT;
   return rc;
 }
 
+// Create a new header in file
 int DmsFile::init_new() {
   // initialize a newly created file, let's append DMS_FILE_HEADER_SIZE bytes
   // and then initialize the header
   auto rc = extend_file(DMS_FILE_HEADER_SIZE);
-  DB_CHECK(rc, error, "Failed to extend file");
+  ErrCheck(rc, error, ErrSys, "Failed to extend file");
 
-  rc = Map(0, DMS_FILE_HEADER_SIZE, (void **)&header_);
-  DB_CHECK(rc, error, "Failed to map");
+  rc = Map(0, (size_t)DMS_FILE_HEADER_SIZE, (void **)&header_);
+  ErrCheck(rc, error, ErrSys, "Failed to map");
 
   strcpy(header_->eye_catcher, DMS_HEADER_EYECATCHER);
   header_->size = 0;
@@ -431,96 +370,91 @@ int DmsFile::init_new() {
   return rc;
 }
 
+// find a page in free pages
 PageID DmsFile::find_page(size_t require_size) {
   auto iter = free_space_map_.upper_bound(require_size);
   return (iter != free_space_map_.end()) ? iter->second : DMS_INVALID_PAGEID;
 }
 
-int DmsFile::extend_file(int size) {
+// extrend a segment size space in file
+int DmsFile::extend_file(int const size) {
   auto rc = OK;
   char temp[DMS_EXTEND_SIZE] = {0};
   memset(temp, 0, sizeof(temp));
-  if (size % DMS_EXTEND_SIZE != 0) {
-    rc = ErrSys;
-    DB_LOG(error, "Invalid extend size");
-    goto done;
-  }
+  ErrCheck((size % DMS_EXTEND_SIZE != 0), error, ErrSys, "Invalid extend size");
   // write file
   for (size_t i = 0; i < (size_t)size; i += DMS_EXTEND_SIZE) {
     file_handle_.seekToEnd();
-    rc = file_handle_.Write(temp, DMS_EXTEND_SIZE);
-    DB_CHECK(rc, error, "Failed to write to file");
+    auto len = file_handle_.Write(temp, DMS_EXTEND_SIZE);
+    ErrCheck(len != DMS_EXTEND_SIZE, error, ErrSys, "Failed to write to file");
   }
-done:
   return rc;
 }
 
-int DmsFile::search_slot(char *page, DmsRecordID &rid, SlotOff &slot) {
+int DmsFile::search_slot(char *page, DmsRecordID const &rid, SlotOff &slot) {
   auto rc = OK;
-  if (!page) {
-    DB_LOG(error, "page is nullptr");
-    rc = ErrSys;
-    // goto done;
-    return rc;
-  }
+  ErrCheck((!page), error, ErrSys, "page is nullptr");
   // let's first verify the rid is valid
-  if (0 > rid.page_id || 0 > rid.slot_id) {
-    DB_LOG(error, "Invaild RID");
-    rc = ErrSys;
-    // goto done;
-    return rc;
-  }
+  ErrCheck((0 > rid.page_id || 0 > rid.slot_id), error, ErrSys, "Invaild RID");
   auto page_header = (DmsPageHeader *)page;
-  if (rid.slot_id > page_header->num_slots) {
-    DB_LOG(error, "Slot is out of range, provided");
-    rc = ErrSys;
-    // goto done;
-    return rc;
-  }
+  ErrCheck((rid.slot_id > page_header->num_slots), error, ErrSys,
+           "Slot is out of range, provided");
   slot = *(SlotOff *)(page + sizeof(DmsPageHeader) +
                       rid.slot_id * sizeof(SlotOff));
-  // done:
   return rc;
 }
-int DmsFile::load_data() {
+// ERROR!
+// load index to bucket manager
+int DmsFile::load_data(char *segment) {
+  auto rc = OK;
+  for (size_t i = 0; i < DMS_PAGES_PER_SEGMENT; ++i) {
+    auto page_header = (DmsPageHeader *)(segment + i * DMS_PAGE_SIZE);
+    free_space_map_.insert(
+        std::pair<unsigned int, PageID>(page_header->free_space, i));
+    auto slot_id = (SlotID)page_header->num_slots;
+    DmsRecordID record_id;
+    record_id.page_id = (PageID)i;
+    for (size_t s = 0; s < slot_id; ++s) {
+      auto slot_offset =
+          *(SlotOff *)(segment + i * DMS_PAGE_SIZE + sizeof(DmsPageHeader) +
+                       s * sizeof(SlotID));
+      if (DMS_SLOT_EMPTY == slot_offset) {
+        continue;
+      }
+      auto data = segment + i * DMS_PAGE_SIZE + slot_offset + sizeof(DmsRecord);
+      auto json_obj = MsgpackToJson(data);
+      record_id.slot_id = (SlotID)s;
+      rc = bucket_manager_->is_ID_exist(json_obj);
+      ErrCheck(rc, info, ErrSys, "Failed to call is_ID_exist");
+      rc = bucket_manager_->create_index(json_obj, record_id);
+      ErrCheck(rc, info, ErrSys, "Failed to call create index");
+    }
+  }
+  return rc;
+}
+
+int DmsFile::map_segments() {
   auto rc = OK;
   if (!header_) {
-    rc = Map(0, DMS_FILE_HEADER_SIZE, (void **)&header_);
-    DB_CHECK(rc, error, "Failed to load data, partial segment detected");
-    // goto done;
-    return rc;
+    rc = Map(0, (size_t)DMS_FILE_HEADER_SIZE, (void **)&header_);
+    ErrCheck(rc, error, ErrSys,
+             "Failed to load data, partial segment detected");
   }
   auto num_page = header_->size;
-  if (num_page % DMS_PAGES_PER_SEGMENT) {
-    DB_LOG(error, "Failed to load data, partial segment detected");
-    rc = ErrSys;
-    // goto done;
-    return rc;
-  }
+  ErrCheck((num_page % DMS_PAGES_PER_SEGMENT), error, ErrSys,
+           "Failed to load data, partial segment detected");
   auto num_segments = num_page / DMS_PAGES_PER_SEGMENT;
-  // get the segments number
-  char *data = nullptr;
-  // TODO
-  // if (num_segments > 0) {
-  //   for (size_t i = 0; i < num_segments; ++i) {
-  //     // map each segment into memory
-  //     rc = Map(DMS_FILE_HEADER_SIZE + DMS_FILE_SEGMENT_SIZE * i,
-  //              DMS_FILE_SEGMENT_SIZE, (void **)&data);
-  //     DB_CHECK(rc, error, "Failed to map segment");
-  //     body_.push_back(data);
-  //     // initialize each page into free_space_map
-  //     for (size_t k = 0; k < DMS_PAGES_PER_SEGMENT; ++k) {
-  //       auto page_header = (DmsPageHeader *)(data + k * DMS_PAGE_SIZE);
-  //       free_space_map_.insert(
-  //           std::pair<unsigned int, PageID>(page_header->free_space, k));
-  //       auto slot_id = (SlotID)page_header->num_slots;
-  //       record_id.page_id = (PageID)k;
-  //       for (size_t s = 0; s < slot_id; ++s) {
-  //       }
-  //     }
-  //   }
-  // }
-  // done:
+  if (num_segments > 0) {
+    for (size_t i = 0; i < (size_t)num_segments; ++i) {
+      // map each segment into memory
+      char *segment = nullptr;
+      rc = Map(DMS_FILE_HEADER_SIZE + DMS_FILE_SEGMENT_SIZE * i,
+               DMS_FILE_SEGMENT_SIZE, (void **)&segment);
+      ErrCheck(rc, error, ErrSys, "Failed to map segment");
+      segments_.push_back(segment);
+      load_data(segment);
+    }
+  }
   return rc;
 }
 
@@ -546,4 +480,3 @@ void DmsFile::recover_space(char *page) {
   }
   page_header->free_space = right - page;
 }
-
