@@ -24,6 +24,7 @@
 #include <future>
 #include <iostream>
 #include <map>
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <nlohmann/json.hpp>
@@ -54,3 +55,4 @@ constexpr int ErrSys = -14;
 constexpr size_t SEND_BUFFER_SIZE = 4096;
 constexpr size_t RECV_BUFFER_SIZE = 4096;
 constexpr uint8_t MagicNumber = 0x20;
+BUFFS

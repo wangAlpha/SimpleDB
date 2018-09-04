@@ -15,11 +15,6 @@
 #define COMMAND_SNAPSHOT "snapshot"
 #define COMMAND_SHUTDOWN "shutdown"
 
-#define INSERT_TIME "insert_time"
-#define DEL_TIME "del_time"
-#define QUERY_TIME "query_time"
-#define RUN_TIME "run_time"
-
 extern bool gQuit;
 
 class ICommand {
@@ -77,7 +72,9 @@ class ICommand {
   }
 
   int recvReply(Client &client) {
-    auto len = RECV_BUFFER_SIZE;
+    auto &len = recv_buffer_length_;
+    len = RECV_BUFFER_SIZE;
+	memset((void*)recv_buffer_, 0, sizeof(recv_buffer_));
     client.recv(recv_buffer_, len);
     if (len >= RECV_BUFFER_SIZE) {
       return getError(Err_Recv_Length);
@@ -92,7 +89,7 @@ class ICommand {
   }
   int handleReply();
   virtual int execute(Client &client, std::vector<std::string> &text) = 0;
-
+  size_t recv_buffer_length_;
   char recv_buffer_[RECV_BUFFER_SIZE];
 };
 
@@ -236,7 +233,15 @@ class SnapCommand : public ICommand {
     if (ret) {
       return getError(return_code);
     }
-    auto json_obj = nlohmann::json::from_msgpack(message->data);
+    nlohmann::json json_obj;
+    try {
+      json_obj =
+          nlohmann::json::from_msgpack(message->data, recv_buffer_length_);
+      std::cout << json_obj.dump() << std::endl;
+    } catch (nlohmann::json::exception const &e) {
+      DB_LOG(error, e.what());
+      ret = ErrInvaildArg;
+    }
     printf("insert time is %u\n", json_obj[INSERT_TIME].get<uint32_t>());
     printf("del time is %u\n", json_obj[DEL_TIME].get<uint32_t>());
     printf("query time is %u\n", json_obj[QUERY_TIME].get<uint32_t>());

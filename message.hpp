@@ -14,6 +14,11 @@ constexpr int CODE_DISCONNECT = 8;
 
 constexpr int CODE_RETURN = 0;
 
+const char *INSERT_TIME = "insert_time";
+const char *DEL_TIME = "del_time";
+const char *QUERY_TIME = "query_time";
+const char *RUN_TIME = "run_time";
+
 // [0]为变长数组，用于取出数据地址,不占用空间
 struct Header {
   uint32_t len;

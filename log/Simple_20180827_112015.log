@@ -1,5 +1,0 @@
-[2018-08-27 11:20:15.945331] [error] [0x000029e2] [0x00007ffff2d22700] /home/me/Documents/SimpleDB/handle_message.hpp:72 HandleMessage() [json.exception.type_error.305] cannot use operator[] with string 
-[2018-08-27 11:20:15.945880] [error] [0x000029e2] [0x00007ffff2d22700] /home/me/Documents/SimpleDB/handle_message.hpp:27 operator()() Argument error 
-[2018-08-27 11:20:39.678256] [error] [0x000029e2] [0x00007ffff2d22700] /home/me/Documents/SimpleDB/tcplistener.cc:41 operator()() End of file 
-[2018-08-27 11:21:39.166554] [error] [0x000029e2] [0x00007ffff2521700] /home/me/Documents/SimpleDB/handle_message.hpp:72 HandleMessage() [json.exception.parse_error.110] parse error at 11: expected end of input 
-[2018-08-27 11:21:39.167004] [error] [0x000029e2] [0x00007ffff2521700] /home/me/Documents/SimpleDB/handle_message.hpp:27 operator()() Argument error 

@@ -1,1 +1,0 @@
-[2018-08-26 15:37:21.538920] [error] [0x00003622] [0x00007ffff7fc3b80] /home/me/Documents/SimpleDB/tcplistener.cc:46 main() bind: Permission denied 

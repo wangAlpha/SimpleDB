@@ -1,4 +1,0 @@
-[2018-08-26 18:59:34.316416] [error] [0x000010bf] [0x00007ffff2521700] /home/me/Documents/SimpleDB/handle_message.hpp:72 HandleMessage() [json.exception.parse_err[2018-08-26 19:01:00.759375] [debug] [0x000010bf] [0x00007ffff1d20700] /home/me/Documents/SimpleDB/handle_message.hpp:59 HandleMessage() Insert request received 
-e.hpp:27 operator()() Argument error 
-[2018-08-26 18:59:34.401043] [error] [0x000010bf] [0x00007ffff2d22700] /home/me/Documents/SimpleDB/tcplistener.cc:41 operator()() End of file 
-[2018-08-26 19:00:24.301342] [error] [0x000010bf] [0x00007ffff2521700] /home/me/Documents/SimpleDB/tcplistener.cc:41 operator()() End of file 

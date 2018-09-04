@@ -48,6 +48,7 @@ int HandleMessage(char *argc, size_t *length, bool *disconnect,
   auto header_code = header->typeCode;
   auto pmd_manager = KRCB::get_pmd_manager();
   auto rtn = pmd_manager->get_rtn();
+  auto monitor = pmd_manager->get_monitor();
   nlohmann::json return_json;
 
   try {
@@ -62,7 +63,10 @@ int HandleMessage(char *argc, size_t *length, bool *disconnect,
         // insert key-value
         std::cout << "insert object: " << json_obj.dump() << std::endl;
         rc = rtn->insert(json_obj);
-        std::cout << "Insert Successful!" << std::endl;
+        if (!rc) {
+          monitor->increase_insert_times();
+          printf("Insert success!\n");
+        }
       } break;
       case CODE_QUERY: {
         nlohmann::json key;
@@ -72,6 +76,10 @@ int HandleMessage(char *argc, size_t *length, bool *disconnect,
         std::cout << "query condition: " << key.dump() << std::endl;
         // query key
         rc = rtn->find(key, return_json);
+        if (!rc) {
+          monitor->increase_query_times();
+          printf("query success!\n");
+        }
       } break;
       case CODE_DELETE: {
         DB_LOG(debug, "delete request received");
@@ -81,22 +89,26 @@ int HandleMessage(char *argc, size_t *length, bool *disconnect,
         std::cout << "delete condition: " << key.dump() << std::endl;
         // remove key
         rc = rtn->remove(key);
+        if (!rc) {
+          monitor->increase_delete_tims();
+          printf("remove success!\n");
+        }
       } break;
       case CODE_SNAPSHOT: {
+        return_json = {{INSERT_TIME, monitor->insert_times()},
+                       {DEL_TIME, monitor->delete_time()},
+                       {QUERY_TIME, monitor->query_time()},
+                       {RUN_TIME, monitor->server_run_time()}};
         DB_LOG(debug, "snapshot request");
-        return_json = {{"insert_time", 100},
-                       {"del_time", 100},
-                       {"query_time", 100},
-                       {"run_time", 100}};
       } break;
       case CODE_DISCONNECT: {
-        DB_LOG(debug, "quit request packet");
         *disconnect = true;
+        DB_LOG(debug, "quit request packet");
       } break;
       case CODE_SHUTDOWN: {
-        DB_LOG(info, "shutodown...");
         *disconnect = true;
         gQuit = true;
+        DB_LOG(info, "shutodown...");
       } break;
       default:
         break;
@@ -124,5 +136,6 @@ int HandleMessage(char *argc, size_t *length, bool *disconnect,
       BuildReply((char *)reply_message->data(), (int *)length, rc, return_json);
     } break;
   }
+  // (*reply_message)[*length++] = '\0';
   return rc;
 }

@@ -249,7 +249,6 @@ int DmsFile::remove(DmsRecordID const &rid) {
   record_header->flag = DMS_RECORD_FLAG_DROPPED;
   // update database metadata
   update_free_space(page_header, record_header->size, rid.page_id);
-  // done:
   return rc;
 }
 
